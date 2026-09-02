@@ -1,0 +1,6 @@
+{
+  "name": "Apex Dental Clinic Management System",
+  "description": "Full-stack production dental practice and receptionist operations system featuring relational patient records, doctor scheduling, conflict detection, treatment tracking, medical alerts, digital prescriptions, printable appointment & consultation cards, reminders, and audit logging.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
