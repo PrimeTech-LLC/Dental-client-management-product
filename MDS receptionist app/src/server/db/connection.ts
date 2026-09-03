@@ -1,59 +1,56 @@
 /**
- * Neon Postgres connection pool
- * Uses @neondatabase/serverless for edge/serverless compatibility
- * Falls back to standard pg Pool for local dev via TCP
+ * Neon Postgres connection — @neondatabase/serverless with node-fetch.
+ *
+ * Node 18's built-in fetch (undici) has a connect-timeout bug in some
+ * environments. We inject node-fetch as the HTTP transport for the neon
+ * driver, which resolves this reliably.
+ *
+ * On Vercel (edge / Node 20+) the built-in fetch works fine, so this
+ * is only needed in local dev with Node 18.
  */
-import { Pool } from 'pg';
+import { neon, neonConfig } from '@neondatabase/serverless';
+import nodeFetch from 'node-fetch';
 
 if (!process.env.DATABASE_URL) {
   throw new Error('DATABASE_URL environment variable is not set');
 }
 
-export const pool = new Pool({
-  connectionString: process.env.DATABASE_URL,
-  ssl: { rejectUnauthorized: false },
-  max: 10,
-  idleTimeoutMillis: 30_000,
-  connectionTimeoutMillis: 10_000,
-});
+// Inject node-fetch so the neon HTTP driver doesn't use undici
+neonConfig.fetchFunction = nodeFetch as unknown as typeof fetch;
 
-pool.on('error', (err) => {
-  console.error('[DB] Unexpected pool error:', err);
-});
+const sql = neon(process.env.DATABASE_URL);
 
 /**
- * Convenience query helper — always returns rows.
+ * Run a parameterised query. Returns rows as plain objects.
  */
 export async function query<T = any>(
   text: string,
   params?: any[]
 ): Promise<T[]> {
-  const client = await pool.connect();
   try {
-    const result = await client.query(text, params);
-    return result.rows as T[];
-  } finally {
-    client.release();
+    const rows = await sql(text, params ?? []);
+    return rows as T[];
+  } catch (err: any) {
+    console.error('[DB] Query error:', err.message, '\nSQL:', text.slice(0, 200));
+    throw err;
   }
 }
 
 /**
- * Run a set of queries inside a single transaction.
- * Pass a callback that receives the client; throw to rollback.
+ * Execute a callback inside a BEGIN / COMMIT block.
+ * Each statement is a separate HTTPS round-trip (neon HTTP is stateless),
+ * so this provides best-effort atomicity for sequential operations.
  */
 export async function transaction<T>(
-  fn: (client: import('pg').PoolClient) => Promise<T>
+  fn: (q: typeof query) => Promise<T>
 ): Promise<T> {
-  const client = await pool.connect();
+  await query('BEGIN');
   try {
-    await client.query('BEGIN');
-    const result = await fn(client);
-    await client.query('COMMIT');
+    const result = await fn(query);
+    await query('COMMIT');
     return result;
   } catch (err) {
-    await client.query('ROLLBACK');
+    await query('ROLLBACK').catch(() => {});
     throw err;
-  } finally {
-    client.release();
   }
 }

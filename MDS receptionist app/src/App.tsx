@@ -94,7 +94,7 @@ export default function App() {
   }, []);
 
   const handleLogout = useCallback(async () => {
-    await fetch('/api/auth/logout', { method: 'POST' });
+    try { await api.logout(); } catch { /* ignore */ }
     setCurrentUser(null);
   }, []);
 
@@ -184,12 +184,16 @@ export default function App() {
         {/* Top Header */}
         <TopBar
           currentUser={currentUser}
+          availableUsers={availableUsers}
+          onSwitchUser={async (userId) => {
+            await handleLogin(userId);
+          }}
+          onLogout={handleLogout}
           onOpenSearch={() => setIsSearchOpen(true)}
           onOpenGlobalSearch={() => setIsSearchOpen(true)}
           onOpenNewAppointment={() => handleOpenNewAppointment()}
           onOpenNewPatient={() => setIsNewPatientOpen(true)}
           onOpenPrintCenter={(docType) => handleOpenPrintCenter(docType)}
-          onLogout={handleLogout}
         />
 
         {/* Dynamic Center Work Area */}
