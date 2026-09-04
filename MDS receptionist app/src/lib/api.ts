@@ -44,11 +44,12 @@ async function fetchJson<T>(url: string, options?: RequestInit): Promise<T> {
 
 export const api = {
   // Auth
-  getAuthMe: () => fetchJson<{ user: User; availableUsers: User[] }>('/api/auth/me'),
+  getAuthMe: () => fetchJson<{ user: User | null; availableUsers: User[] }>('/api/auth/me'),
   switchRole: (userId: string) => fetchJson<{ user: User }>('/api/auth/switch-role', {
     method: 'POST',
     body: JSON.stringify({ userId })
   }),
+  logout: () => fetchJson<void>('/api/auth/logout', { method: 'POST' }),
 
   // Patients
   getPatients: (search = '', limit = 100, offset = 0) => 

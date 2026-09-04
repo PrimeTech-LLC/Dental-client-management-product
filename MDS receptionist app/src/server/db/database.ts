@@ -5,7 +5,6 @@
  */
 
 import { query, transaction } from './connection.js';
-import type { PoolClient } from 'pg';
 import {
   User,
   Doctor,
@@ -439,10 +438,10 @@ export async function updateDoctorAvailability(
   doctorId: string,
   availabilityList: DoctorAvailability[]
 ): Promise<void> {
-  await transaction(async (client) => {
-    await client.query('DELETE FROM doctor_availability WHERE doctor_id = $1', [doctorId]);
+  await transaction(async (q) => {
+    await q('DELETE FROM doctor_availability WHERE doctor_id = $1', [doctorId]);
     for (const av of availabilityList) {
-      await client.query(
+      await q(
         `INSERT INTO doctor_availability (id, doctor_id, day_of_week, start_time, end_time, is_available)
          VALUES ($1,$2,$3,$4,$5,$6)`,
         [av.id || `avail-${Date.now()}-${av.dayOfWeek}`, doctorId, av.dayOfWeek, av.startTime, av.endTime, av.isAvailable]
@@ -838,9 +837,14 @@ export async function checkAppointmentConflict(
   excludeAppointmentId?: string
 ): Promise<ConflictCheckResult> {
   // 1. Doctor active?
-  const docRows = await query('SELECT * FROM doctors WHERE id = $1', [doctorId]);
+  const docRows = await query('SELECT id, full_name, is_active FROM doctors WHERE id = $1', [doctorId]);
   const doctor = docRows[0];
-  if (!doctor || !doctor.is_active) {
+  if (!doctor) {
+    return { hasConflict: true, conflictReason: 'Selected doctor was not found.' };
+  }
+  // Handle both boolean true and string "true" from different drivers
+  const isActive = doctor.is_active === true || doctor.is_active === 'true' || doctor.is_active === 't';
+  if (!isActive) {
     return { hasConflict: true, conflictReason: 'Selected doctor is currently inactive or unavailable.' };
   }
 
@@ -849,8 +853,11 @@ export async function checkAppointmentConflict(
     'SELECT * FROM doctor_schedule_exceptions WHERE doctor_id = $1 AND date = $2',
     [doctorId, appointmentDate]
   );
-  if (exRows[0] && !exRows[0].is_available) {
-    return { hasConflict: true, conflictReason: `Doctor is on leave on ${appointmentDate} (${exRows[0].reason}).` };
+  if (exRows[0]) {
+    const exAvailable = exRows[0].is_available === true || exRows[0].is_available === 'true' || exRows[0].is_available === 't';
+    if (!exAvailable) {
+      return { hasConflict: true, conflictReason: `Doctor is on leave on ${appointmentDate} (${exRows[0].reason}).` };
+    }
   }
 
   // 3. Weekly schedule
@@ -860,8 +867,11 @@ export async function checkAppointmentConflict(
     'SELECT * FROM doctor_availability WHERE doctor_id = $1 AND day_of_week = $2',
     [doctorId, dayOfWeek]
   );
-  if (availRows[0] && !availRows[0].is_available) {
-    return { hasConflict: true, conflictReason: 'Doctor does not practice on this day of the week.' };
+  if (availRows[0]) {
+    const slotAvailable = availRows[0].is_available === true || availRows[0].is_available === 'true' || availRows[0].is_available === 't';
+    if (!slotAvailable) {
+      return { hasConflict: true, conflictReason: 'Doctor does not practice on this day of the week.' };
+    }
   }
 
   // 4. Overlapping appointments
@@ -1061,14 +1071,14 @@ export async function rescheduleAppointment(
     if (conflict.hasConflict) return { conflict };
   }
 
-  return transaction(async (client) => {
+  return transaction(async (q) => {
     // Mark old as RESCHEDULED
-    await client.query(
+    await q(
       `UPDATE appointments SET status = 'RESCHEDULED', reschedule_reason = $1, updated_at = NOW() WHERE id = $2`,
       [reason, id]
     );
     // Create new appointment
-    const newRows = await client.query(
+    const newRows = await q<{ id: string }>(
       `INSERT INTO appointments
          (patient_id, doctor_id, appointment_date, start_time, end_time, duration_minutes,
           appointment_type, status, original_appointment_id, notes, created_by)
@@ -1078,8 +1088,8 @@ export async function rescheduleAppointment(
        `Rescheduled from ${old.appointmentDate} ${old.startTime}. Reason: ${reason}`,
        actorName]
     );
-    const newAppt = await getAppointmentById(newRows.rows[0].id);
-    await logAudit({ userId: 'system', userName: actorName, userRole: 'RECEPTIONIST', action: 'APPOINTMENT_RESCHEDULED', entityType: 'APPOINTMENT', entityId: newRows.rows[0].id });
+    const newAppt = await getAppointmentById(newRows[0].id);
+    await logAudit({ userId: 'system', userName: actorName, userRole: 'RECEPTIONIST', action: 'APPOINTMENT_RESCHEDULED', entityType: 'APPOINTMENT', entityId: newRows[0].id });
     return { appointment: newAppt! };
   });
 }
@@ -1279,8 +1289,8 @@ export async function createPrescription(
 ): Promise<Prescription> {
   const rxNumber = await generateRxNumber();
 
-  return transaction(async (client) => {
-    const rxRows = await client.query(
+  return transaction(async (q) => {
+    const rxRows = await q<{ id: string }>(
       `INSERT INTO prescriptions
          (rx_number, patient_id, doctor_id, visit_id, prescription_date, diagnosis,
           chief_complaint, instructions, follow_up_notes, follow_up_days, status)
@@ -1291,17 +1301,17 @@ export async function createPrescription(
        rxData.instructions ?? null, rxData.followUpNotes ?? null,
        rxData.followUpDays ?? null, rxData.status ?? 'ACTIVE']
     );
-    const rxId = rxRows.rows[0].id;
+    const rxId = rxRows[0].id;
 
     for (let idx = 0; idx < items.length; idx++) {
       const it = items[idx];
-      await client.query(
+      await q(
         `INSERT INTO prescription_items (prescription_id, medicine_name, strength, dosage, frequency, duration, route, instructions, sort_order)
          VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9)`,
         [rxId, it.medicineName, it.strength ?? null, it.dosage, it.frequency, it.duration, it.route ?? 'Oral', it.instructions ?? null, idx]
       );
       // Also add to patient medications
-      await client.query(
+      await q(
         `INSERT INTO patient_medications (patient_id, medicine_name, dosage, frequency, route, start_date, status, notes)
          VALUES ($1,$2,$3,$4,$5,$6,'CURRENT',$7)`,
         [rxData.patientId, it.medicineName, it.dosage, it.frequency, it.route ?? 'Oral',
