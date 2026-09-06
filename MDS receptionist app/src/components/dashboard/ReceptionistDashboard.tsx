@@ -476,7 +476,7 @@ export const ReceptionistDashboard: React.FC<ReceptionistDashboardProps> = ({
               </button>
 
               <button
-                onClick={() => onOpenPrintCenter('MedicalHistoryCard')}
+                onClick={() => onOpenPrintCenter('PatientHistory')}
                 className="w-full text-left p-3 text-xs font-medium hover:bg-slate-50 border border-slate-100 rounded flex items-center justify-between group cursor-pointer"
               >
                 <span className="text-slate-700">Patient Histories</span>

@@ -373,9 +373,9 @@ export const PrintCenterModal: React.FC<PrintCenterModalProps> = ({
                       </div>
                     )}
 
-                    {prescription?.generalAdvice && (
+                    {prescription?.instructions && (
                       <div className="pt-2 text-[11px] text-slate-700">
-                        <strong>Advice: </strong> {prescription.generalAdvice}
+                        <strong>Advice: </strong> {prescription.instructions}
                       </div>
                     )}
                   </div>

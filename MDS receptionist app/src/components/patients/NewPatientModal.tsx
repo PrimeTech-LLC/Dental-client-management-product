@@ -87,9 +87,9 @@ export const NewPatientModal: React.FC<NewPatientModalProps> = ({
       // If medical conditions were added, add to medical history
       if (medicalNotes) {
         await api.addMedicalHistory(patient.id, {
-          conditionName: 'Initial Intake Notes',
+          condition: 'Initial Intake Notes',
           notes: medicalNotes,
-          diagnosedDate: new Date().toISOString().split('T')[0]
+          diagnosedAt: new Date().toISOString().split('T')[0]
         });
       }
 
@@ -98,7 +98,7 @@ export const NewPatientModal: React.FC<NewPatientModalProps> = ({
         await api.addAllergy(patient.id, {
           allergen: allergies,
           severity: 'HIGH',
-          reactionNotes: 'Reported during registration'
+          reaction: 'Reported during registration'
         });
       }
 

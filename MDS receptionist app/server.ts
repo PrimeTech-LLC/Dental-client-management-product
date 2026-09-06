@@ -94,33 +94,28 @@ if (!IS_PROD) {
 app.get('/api/auth/me', async (req, res) => {
   const token = req.cookies?.auth_token;
   if (!token) {
-    const users = await db.getUsers().catch(() => []);
-    return res.json({ success: true, data: { user: null, availableUsers: users } });
+    return res.json({ success: true, data: { user: null } });
   }
   try {
     const payload = jwt.verify(token, JWT_SECRET) as { id: string };
     const user = await db.getUserById(payload.id);
-    const users = await db.getUsers();
-    return res.json({ success: true, data: { user: user || null, availableUsers: users } });
+    return res.json({ success: true, data: { user: user || null } });
   } catch {
     clearAuthCookie(res);
-    const users = await db.getUsers().catch(() => []);
-    return res.json({ success: true, data: { user: null, availableUsers: users } });
+    return res.json({ success: true, data: { user: null } });
   }
 });
 
-app.post('/api/auth/switch-role', async (req, res) => {
+// ── Credential login ──────────────────────────────────────────────────────────
+app.post('/api/auth/login', async (req, res) => {
   try {
-    const { userId } = req.body;
-    if (!userId) {
-      return res.status(400).json({ success: false, error: { code: 'MISSING_USER_ID', message: 'userId is required' } });
+    const { username, password } = req.body;
+    if (!username || !password) {
+      return res.status(400).json({ success: false, error: { code: 'MISSING_FIELDS', message: 'Username and password are required' } });
     }
-    const user = await db.getUserById(userId);
+    const user = await db.verifyUserPassword(username, password);
     if (!user) {
-      return res.status(404).json({ success: false, error: { code: 'USER_NOT_FOUND', message: 'User not found' } });
-    }
-    if (!user.isActive) {
-      return res.status(403).json({ success: false, error: { code: 'USER_INACTIVE', message: 'User account is inactive' } });
+      return res.status(401).json({ success: false, error: { code: 'INVALID_CREDENTIALS', message: 'Invalid username or password' } });
     }
     await db.updateUserLastLogin(user.id);
     const token = signToken(user);
@@ -128,7 +123,7 @@ app.post('/api/auth/switch-role', async (req, res) => {
     await db.logAudit({ userId: user.id, userName: user.name, userRole: user.role, action: 'USER_LOGIN', entityType: 'USER', entityId: user.id, entityName: user.name });
     return res.json({ success: true, data: { user } });
   } catch (err: any) {
-    console.error('[switch-role] error:', err.message);
+    console.error('[login] error:', err.message);
     return res.status(500).json({ success: false, error: { message: err.message } });
   }
 });
@@ -144,12 +139,58 @@ app.post('/api/auth/logout', (req, res) => {
 app.use('/api', (req, res, next) => {
   const pub = [
     ['GET',  '/auth/me'],
-    ['POST', '/auth/switch-role'],
+    ['POST', '/auth/login'],
     ['POST', '/auth/logout'],
   ];
   const isPublic = pub.some(([m, p]) => req.method === m && req.path === p);
   if (isPublic) return next();
   return requireAuth(req, res, next);
+});
+
+// ── Users (Receptionist Management) ──────────────────────────────────────────
+
+app.get('/api/users/receptionists', async (req, res) => {
+  try {
+    const users = await db.getReceptionists();
+    res.json({ success: true, data: users });
+  } catch (err: any) { res.status(500).json({ success: false, error: { message: err.message } }); }
+});
+
+app.post('/api/users/receptionists', async (req, res) => {
+  try {
+    const { name, email, password } = req.body;
+    if (!name || !email || !password) {
+      return res.status(400).json({ success: false, error: { code: 'MISSING_FIELDS', message: 'Name, email, and password are required' } });
+    }
+    const user = await db.createReceptionist({ name, email, password }, currentUser(req).name);
+    res.status(201).json({ success: true, data: user });
+  } catch (err: any) {
+    const isDupe = err.message?.includes('unique') || err.message?.includes('duplicate');
+    res.status(isDupe ? 409 : 500).json({ success: false, error: { message: isDupe ? 'Email already in use' : err.message } });
+  }
+});
+
+app.put('/api/users/receptionists/:id', async (req, res) => {
+  try {
+    const updated = await db.updateReceptionist(req.params.id, req.body, currentUser(req).name);
+    if (!updated) return res.status(404).json({ success: false, error: { code: 'NOT_FOUND', message: 'Receptionist not found' } });
+    res.json({ success: true, data: updated });
+  } catch (err: any) {
+    const isDupe = err.message?.includes('unique') || err.message?.includes('duplicate');
+    res.status(isDupe ? 409 : 500).json({ success: false, error: { message: isDupe ? 'Email already in use' : err.message } });
+  }
+});
+
+app.delete('/api/users/receptionists/:id', async (req, res) => {
+  try {
+    // Prevent self-deletion
+    if (req.params.id === currentUser(req).id) {
+      return res.status(400).json({ success: false, error: { code: 'SELF_DELETE', message: 'You cannot delete your own account' } });
+    }
+    const deleted = await db.deleteReceptionist(req.params.id, currentUser(req).name);
+    if (!deleted) return res.status(404).json({ success: false, error: { code: 'NOT_FOUND', message: 'Receptionist not found' } });
+    res.json({ success: true });
+  } catch (err: any) { res.status(500).json({ success: false, error: { message: err.message } }); }
 });
 
 // ── Patients ──────────────────────────────────────────────────────────────────

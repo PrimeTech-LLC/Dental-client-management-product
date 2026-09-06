@@ -139,7 +139,7 @@ export const PrescriptionEditorModal: React.FC<PrescriptionEditorModalProps> = (
         prescriptionDate: new Date().toISOString().split('T')[0],
         diagnosis,
         chiefComplaint,
-        generalAdvice,
+        instructions: generalAdvice,
         followUpDays: Number(followUpDays),
         items: items.map(it => ({
           medicineName: it.medicineName || 'Medicine',

@@ -32,7 +32,7 @@ export const AuditLogsHub: React.FC = () => {
       const q = searchQuery.toLowerCase();
       const matchAction = log.action.toLowerCase().includes(q);
       const matchEntity = log.entityType.toLowerCase().includes(q);
-      const matchUser = log.user?.fullName.toLowerCase().includes(q);
+      const matchUser = log.userName.toLowerCase().includes(q);
       if (!matchAction && !matchEntity && !matchUser) return false;
     }
     return true;
@@ -122,8 +122,8 @@ export const AuditLogsHub: React.FC = () => {
                     </td>
 
                     <td className="py-3 px-4 whitespace-nowrap">
-                      <span className="font-semibold text-slate-800">{log.user?.fullName || 'System'}</span>
-                      <div className="text-[10px] text-slate-400 font-mono">{log.user?.role || 'RECEPTIONIST'}</div>
+                      <span className="font-semibold text-slate-800">{log.userName || 'System'}</span>
+                      <div className="text-[10px] text-slate-400 font-mono">{log.userRole || 'RECEPTIONIST'}</div>
                     </td>
 
                     <td className="py-3 px-4 whitespace-nowrap">
@@ -138,9 +138,9 @@ export const AuditLogsHub: React.FC = () => {
                     </td>
 
                     <td className="py-3 px-4">
-                      {log.changes ? (
+                      {(log.oldValues || log.newValues) ? (
                         <pre className="text-[10px] font-mono bg-slate-50 p-1.5 rounded border border-slate-200 max-w-md overflow-x-auto text-slate-700">
-                          {JSON.stringify(log.changes, null, 2)}
+                          {log.newValues || log.oldValues}
                         </pre>
                       ) : (
                         <span className="text-slate-400 text-[11px]">No payload captured</span>

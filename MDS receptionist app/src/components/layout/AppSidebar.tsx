@@ -10,7 +10,8 @@ import {
   ShieldAlert,
   Settings,
   LayoutDashboard,
-  Printer
+  Printer,
+  UserCog
 } from 'lucide-react';
 
 export type NavItemKey =
@@ -23,7 +24,8 @@ export type NavItemKey =
   | 'reminders'
   | 'reports'
   | 'audit'
-  | 'settings';
+  | 'settings'
+  | 'staff';
 
 export type NavSection = NavItemKey;
 
@@ -34,6 +36,7 @@ interface AppSidebarProps {
   onNavigate?: (tab: NavItemKey) => void;
   onOpenPrintCenter?: () => void;
   isCollapsed?: boolean;
+  currentUser?: { name: string; role: string };
 }
 
 export const AppSidebar: React.FC<AppSidebarProps> = ({
@@ -41,22 +44,24 @@ export const AppSidebar: React.FC<AppSidebarProps> = ({
   currentSection,
   onSelectTab,
   onNavigate,
-  onOpenPrintCenter
+  onOpenPrintCenter,
+  currentUser
 }) => {
   const activeKey = currentSection || currentTab || 'dashboard';
   const handleSelect = onNavigate || onSelectTab || (() => {});
 
   const navItems: { key: NavItemKey; label: string; icon: React.FC<{ className?: string }> }[] = [
-    { key: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
-    { key: 'patients', label: 'Patients', icon: Users },
-    { key: 'appointments', label: 'Schedule', icon: CalendarDays },
-    { key: 'doctors', label: 'Doctors', icon: Stethoscope },
-    { key: 'prescriptions', label: 'Prescriptions', icon: FileText },
-    { key: 'treatments', label: 'Treatments', icon: UserRoundCheck },
-    { key: 'reminders', label: 'Reminders', icon: Bell },
-    { key: 'reports', label: 'Reports', icon: BarChart3 },
-    { key: 'audit', label: 'Audit Logs', icon: ShieldAlert },
-    { key: 'settings', label: 'Settings', icon: Settings },
+    { key: 'dashboard',     label: 'Dashboard',    icon: LayoutDashboard },
+    { key: 'patients',      label: 'Patients',     icon: Users },
+    { key: 'appointments',  label: 'Schedule',     icon: CalendarDays },
+    { key: 'doctors',       label: 'Doctors',      icon: Stethoscope },
+    { key: 'prescriptions', label: 'Prescriptions',icon: FileText },
+    { key: 'treatments',    label: 'Treatments',   icon: UserRoundCheck },
+    { key: 'reminders',     label: 'Reminders',    icon: Bell },
+    { key: 'reports',       label: 'Reports',      icon: BarChart3 },
+    { key: 'audit',         label: 'Audit Logs',   icon: ShieldAlert },
+    { key: 'settings',      label: 'Settings',     icon: Settings },
+    { key: 'staff',         label: 'Staff Mgmt',   icon: UserCog },
   ];
 
   return (
@@ -113,11 +118,11 @@ export const AppSidebar: React.FC<AppSidebarProps> = ({
       <div className="p-4 border-t border-slate-800 shrink-0">
         <div className="flex items-center gap-3 p-2 bg-slate-800/50 rounded-lg border border-slate-800">
           <div className="w-8 h-8 rounded-full bg-slate-600 text-white font-semibold flex items-center justify-center text-xs">
-            AR
+            {currentUser?.name?.charAt(0)?.toUpperCase() || 'R'}
           </div>
           <div className="flex-1 min-w-0">
-            <p className="text-xs font-semibold text-white truncate">Alice Reed</p>
-            <p className="text-[10px] text-slate-400 uppercase tracking-wider">Receptionist</p>
+            <p className="text-xs font-semibold text-white truncate">{currentUser?.name || 'Receptionist'}</p>
+            <p className="text-[10px] text-slate-400 uppercase tracking-wider">{currentUser?.role || 'RECEPTIONIST'}</p>
           </div>
           <span className="w-2 h-2 rounded-full bg-emerald-500 shadow-[0_0_6px_rgba(16,185,129,0.5)]"></span>
         </div>

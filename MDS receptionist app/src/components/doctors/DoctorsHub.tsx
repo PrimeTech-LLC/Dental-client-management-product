@@ -163,7 +163,6 @@ export const DoctorsHub: React.FC = () => {
         dayOfWeek,
         startTime: '09:00',
         endTime: '17:00',
-        slotDurationMinutes: 30,
         isAvailable
       });
     }
@@ -178,7 +177,7 @@ export const DoctorsHub: React.FC = () => {
     e.preventDefault();
     if (!selectedDoctor || !exceptionDate) return;
     await api.addDoctorException(selectedDoctor.id, {
-      exceptionDate,
+      date: exceptionDate,
       isAvailable: false,
       reason: exceptionReason
     });
@@ -396,7 +395,7 @@ export const DoctorsHub: React.FC = () => {
                   {selectedDoctor.exceptions.map(ex => (
                     <div key={ex.id} className="p-3 bg-slate-50 border border-slate-200 rounded-lg flex items-center justify-between">
                       <div>
-                        <span className="font-bold text-slate-800">{formatDate(ex.exceptionDate)}</span>
+                        <span className="font-bold text-slate-800">{formatDate(ex.date)}</span>
                         <span className="ml-2 text-slate-600 text-[11px]">— {ex.reason}</span>
                       </div>
                       <button

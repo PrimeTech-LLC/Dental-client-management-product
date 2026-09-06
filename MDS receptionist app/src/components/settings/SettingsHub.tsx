@@ -33,15 +33,15 @@ export const SettingsHub: React.FC = () => {
       setPhone(data.phone);
       setEmergencyPhone(data.emergencyPhone || '');
       setEmail(data.email);
-      setAddressLine1(data.addressLine1);
+      setAddressLine1(data.addressLine1 || '');
       setAddressLine2(data.addressLine2 || '');
-      setCity(data.city);
-      setState(data.state);
-      setZipCode(data.zipCode);
-      setOperatingStart(data.operatingHoursStart);
-      setOperatingEnd(data.operatingHoursEnd);
-      setSlotDuration(data.defaultSlotDurationMinutes);
-      setCurrencySymbol(data.currencySymbol);
+      setCity(data.city || '');
+      setState(data.state || '');
+      setZipCode(data.zipCode || '');
+      setOperatingStart(data.operatingHoursStart || '08:00');
+      setOperatingEnd(data.operatingHoursEnd || '18:00');
+      setSlotDuration(data.defaultSlotDurationMinutes ?? 30);
+      setCurrencySymbol(data.currencySymbol || '$');
     } catch (err) {
       console.error(err);
     } finally {

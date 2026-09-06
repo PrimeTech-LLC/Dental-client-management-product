@@ -1,0 +1,15 @@
+{
+  "name": "dental-client-management-product",
+  "private": true,
+  "scripts": {
+    "dev": "npm run dev --prefix \"MDS receptionist app\"",
+    "dev:api": "npm run dev:api --prefix \"MDS receptionist app\"",
+    "dev:ui": "npm run dev:ui --prefix \"MDS receptionist app\"",
+    "build": "npm run build --prefix \"MDS receptionist app\"",
+    "start": "npm run start --prefix \"MDS receptionist app\"",
+    "migrate": "npm run migrate --prefix \"MDS receptionist app\"",
+    "migrate:seed": "npm run migrate:seed --prefix \"MDS receptionist app\"",
+    "migrate:reset": "npm run migrate:reset --prefix \"MDS receptionist app\"",
+    "lint": "npm run lint --prefix \"MDS receptionist app\""
+  }
+}

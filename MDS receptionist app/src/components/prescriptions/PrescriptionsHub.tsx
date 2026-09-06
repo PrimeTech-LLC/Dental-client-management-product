@@ -204,10 +204,10 @@ export const PrescriptionsHub: React.FC<PrescriptionsHubProps> = ({
               </div>
 
               {/* Advice */}
-              {rx.generalAdvice && (
+              {rx.instructions && (
                 <div className="text-[11px] text-slate-600 bg-slate-50 p-2 rounded border border-slate-200">
                   <span className="font-semibold text-slate-700">Post-Op Care Advice: </span>
-                  {rx.generalAdvice}
+                  {rx.instructions}
                 </div>
               )}
             </div>

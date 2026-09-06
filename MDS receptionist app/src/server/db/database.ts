@@ -412,6 +412,96 @@ export async function updateUserLastLogin(id: string): Promise<void> {
   await query('UPDATE users SET last_login_at = NOW() WHERE id = $1', [id]);
 }
 
+export async function verifyUserPassword(
+  nameOrEmail: string,
+  password: string
+): Promise<User | null> {
+  // Match by name (case-insensitive) or email
+  const rows = await query<any>(
+    `SELECT * FROM users
+     WHERE (lower(name) = lower($1) OR lower(email) = lower($1))
+       AND is_active = true
+       AND password_hash IS NOT NULL
+       AND password_hash = crypt($2, password_hash)`,
+    [nameOrEmail.trim(), password]
+  );
+  return rows[0] ? mapUser(rows[0]) : null;
+}
+
+export async function getReceptionists(): Promise<User[]> {
+  const rows = await query(
+    `SELECT * FROM users WHERE role = 'RECEPTIONIST' ORDER BY name`
+  );
+  return rows.map(mapUser);
+}
+
+export async function createReceptionist(data: {
+  name: string;
+  email: string;
+  password: string;
+}, actorName = 'Admin'): Promise<User> {
+  const rows = await query<any>(
+    `INSERT INTO users (name, email, role, password_hash, is_active)
+     VALUES ($1, $2, 'RECEPTIONIST', crypt($3, gen_salt('bf')), true)
+     RETURNING *`,
+    [data.name.trim(), data.email.trim().toLowerCase(), data.password]
+  );
+  const user = mapUser(rows[0]);
+  await logAudit({
+    userId: 'system', userName: actorName, userRole: 'RECEPTIONIST',
+    action: 'USER_CREATED', entityType: 'USER',
+    entityId: user.id, entityName: user.name,
+  });
+  return user;
+}
+
+export async function updateReceptionist(
+  id: string,
+  data: { name?: string; email?: string; password?: string; isActive?: boolean },
+  actorName = 'Admin'
+): Promise<User | null> {
+  // Build dynamic SET clause — only update provided fields
+  const sets: string[] = ['updated_at = NOW()'];
+  const params: any[] = [];
+  let i = 1;
+
+  if (data.name !== undefined)     { sets.push(`name = $${i++}`);     params.push(data.name.trim()); }
+  if (data.email !== undefined)    { sets.push(`email = $${i++}`);    params.push(data.email.trim().toLowerCase()); }
+  if (data.password !== undefined && data.password.length > 0) {
+    sets.push(`password_hash = crypt($${i++}, gen_salt('bf'))`);
+    params.push(data.password);
+  }
+  if (data.isActive !== undefined) { sets.push(`is_active = $${i++}`); params.push(data.isActive); }
+
+  params.push(id); // last param = WHERE id = $N
+  const rows = await query<any>(
+    `UPDATE users SET ${sets.join(', ')} WHERE id = $${i} AND role = 'RECEPTIONIST' RETURNING *`,
+    params
+  );
+  if (!rows[0]) return null;
+  const user = mapUser(rows[0]);
+  await logAudit({
+    userId: 'system', userName: actorName, userRole: 'RECEPTIONIST',
+    action: 'USER_UPDATED', entityType: 'USER',
+    entityId: id, entityName: user.name,
+  });
+  return user;
+}
+
+export async function deleteReceptionist(id: string, actorName = 'Admin'): Promise<boolean> {
+  const rows = await query<any>(
+    `DELETE FROM users WHERE id = $1 AND role = 'RECEPTIONIST' RETURNING id, name`,
+    [id]
+  );
+  if (!rows[0]) return false;
+  await logAudit({
+    userId: 'system', userName: actorName, userRole: 'RECEPTIONIST',
+    action: 'USER_DELETED', entityType: 'USER',
+    entityId: id, entityName: rows[0].name,
+  });
+  return true;
+}
+
 // ─── Doctors ────────────────────────────────────────────────────────────────
 
 export async function getDoctors(includeInactive = false): Promise<Doctor[]> {

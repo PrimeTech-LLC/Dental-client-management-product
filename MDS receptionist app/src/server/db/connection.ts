@@ -1,22 +1,14 @@
 /**
- * Neon Postgres connection — @neondatabase/serverless with node-fetch.
+ * Neon Postgres connection — @neondatabase/serverless.
  *
- * Node 18's built-in fetch (undici) has a connect-timeout bug in some
- * environments. We inject node-fetch as the HTTP transport for the neon
- * driver, which resolves this reliably.
- *
- * On Vercel (edge / Node 20+) the built-in fetch works fine, so this
- * is only needed in local dev with Node 18.
+ * Node 22 has a fully stable built-in fetch, so no node-fetch injection
+ * is required. The neon driver uses the global fetch automatically.
  */
-import { neon, neonConfig } from '@neondatabase/serverless';
-import nodeFetch from 'node-fetch';
+import { neon } from '@neondatabase/serverless';
 
 if (!process.env.DATABASE_URL) {
   throw new Error('DATABASE_URL environment variable is not set');
 }
-
-// Inject node-fetch so the neon HTTP driver doesn't use undici
-neonConfig.fetchFunction = nodeFetch as unknown as typeof fetch;
 
 const sql = neon(process.env.DATABASE_URL);
 

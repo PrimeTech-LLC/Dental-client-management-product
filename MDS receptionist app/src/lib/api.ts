@@ -44,12 +44,21 @@ async function fetchJson<T>(url: string, options?: RequestInit): Promise<T> {
 
 export const api = {
   // Auth
-  getAuthMe: () => fetchJson<{ user: User | null; availableUsers: User[] }>('/api/auth/me'),
-  switchRole: (userId: string) => fetchJson<{ user: User }>('/api/auth/switch-role', {
+  getAuthMe: () => fetchJson<{ user: User | null }>('/api/auth/me'),
+  login: (username: string, password: string) => fetchJson<{ user: User }>('/api/auth/login', {
     method: 'POST',
-    body: JSON.stringify({ userId })
+    body: JSON.stringify({ username, password })
   }),
   logout: () => fetchJson<void>('/api/auth/logout', { method: 'POST' }),
+
+  // Receptionist management
+  getReceptionists: () => fetchJson<User[]>('/api/users/receptionists'),
+  createReceptionist: (data: { name: string; email: string; password: string }) =>
+    fetchJson<User>('/api/users/receptionists', { method: 'POST', body: JSON.stringify(data) }),
+  updateReceptionist: (id: string, data: { name?: string; email?: string; password?: string; isActive?: boolean }) =>
+    fetchJson<User>(`/api/users/receptionists/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
+  deleteReceptionist: (id: string) =>
+    fetchJson<void>(`/api/users/receptionists/${id}`, { method: 'DELETE' }),
 
   // Patients
   getPatients: (search = '', limit = 100, offset = 0) => 

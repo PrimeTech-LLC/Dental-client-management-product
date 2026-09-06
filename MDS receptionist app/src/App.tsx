@@ -15,6 +15,7 @@ import { RemindersHub } from './components/reminders/RemindersHub.js';
 import { ReportsHub } from './components/reports/ReportsHub.js';
 import { AuditLogsHub } from './components/audit/AuditLogsHub.js';
 import { SettingsHub } from './components/settings/SettingsHub.js';
+import { UsersHub } from './components/users/UsersHub.js';
 
 // Modals
 import { NewAppointmentModal } from './components/appointments/NewAppointmentModal.js';
@@ -24,7 +25,7 @@ import { NewPatientModal } from './components/patients/NewPatientModal.js';
 import { PrescriptionEditorModal } from './components/prescriptions/PrescriptionEditorModal.js';
 import { PrintCenterModal, PrintDocType } from './components/print/PrintCenterModal.js';
 
-// Auth / login screen
+// Auth
 import { LoginScreen } from './components/auth/LoginScreen.js';
 
 import { Appointment, Prescription, User } from './types/index.js';
@@ -33,7 +34,6 @@ import { api } from './lib/api.js';
 export default function App() {
   // ── Auth state ───────────────────────────────────────────────
   const [currentUser, setCurrentUser] = useState<User | null>(null);
-  const [availableUsers, setAvailableUsers] = useState<User[]>([]);
   const [authLoading, setAuthLoading] = useState(true);
 
   // ── Navigation state ─────────────────────────────────────────
@@ -67,12 +67,10 @@ export default function App() {
 
   // ── Bootstrap auth from cookie ───────────────────────────────
   useEffect(() => {
-    api.getAuthMe().then(({ user, availableUsers }) => {
-      setCurrentUser(user ?? null);
-      setAvailableUsers(availableUsers ?? []);
-    }).catch(() => {
-      setCurrentUser(null);
-    }).finally(() => setAuthLoading(false));
+    api.getAuthMe()
+      .then(({ user }) => setCurrentUser(user ?? null))
+      .catch(() => setCurrentUser(null))
+      .finally(() => setAuthLoading(false));
   }, []);
 
   // ── Keyboard shortcut: Ctrl+K / Cmd+K ───────────────────────
@@ -87,17 +85,20 @@ export default function App() {
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, []);
 
-  // ── Handlers ─────────────────────────────────────────────────
-  const handleLogin = useCallback(async (userId: string) => {
-    const { user } = await api.switchRole(userId);
+  // ── Auth handlers ─────────────────────────────────────────────
+  const handleLogin = useCallback(async (username: string, password: string) => {
+    const { user } = await api.login(username, password);
     setCurrentUser(user);
   }, []);
 
   const handleLogout = useCallback(async () => {
     try { await api.logout(); } catch { /* ignore */ }
     setCurrentUser(null);
+    setCurrentSection('dashboard');
+    setSelectedPatientId(null);
   }, []);
 
+  // ── Navigation handlers ───────────────────────────────────────
   const handleOpenNewAppointment = useCallback((patientId?: string, doctorId?: string, date?: string) => {
     setNewApptInitialPatientId(patientId);
     setNewApptInitialDoctorId(doctorId);
@@ -110,7 +111,6 @@ export default function App() {
     setIsRescheduleOpen(true);
   }, []);
 
-  // Unified handler — receives the full appointment object
   const handleOpenDetail = useCallback((appointment: Appointment) => {
     setDetailAppointment(appointment);
     setIsDetailOpen(true);
@@ -119,7 +119,6 @@ export default function App() {
   const handleUpdateAppointmentStatus = useCallback(async (appointmentId: string, newStatus: string) => {
     try {
       const updated = await api.updateAppointmentStatus(appointmentId, newStatus);
-      // Update the detail modal if it's showing the same appointment
       setDetailAppointment(prev => (prev?.id === appointmentId ? updated : prev));
     } catch (err: any) {
       alert(`Failed to update status: ${err.message}`);
@@ -154,7 +153,7 @@ export default function App() {
     setCurrentSection(section);
   }, []);
 
-  // ── Render: auth gate ────────────────────────────────────────
+  // ── Loading screen ───────────────────────────────────────────
   if (authLoading) {
     return (
       <div className="h-screen flex items-center justify-center bg-slate-50">
@@ -166,28 +165,24 @@ export default function App() {
     );
   }
 
+  // ── Login gate ───────────────────────────────────────────────
   if (!currentUser) {
-    return <LoginScreen availableUsers={availableUsers} onLogin={handleLogin} />;
+    return <LoginScreen onLogin={handleLogin} />;
   }
 
+  // ── Main app ─────────────────────────────────────────────────
   return (
     <div className="h-screen bg-slate-50 text-slate-800 flex overflow-hidden font-sans antialiased selection:bg-teal-100 selection:text-teal-900">
-      {/* Left Navigation Sidebar */}
       <AppSidebar
         currentSection={currentSection}
         onNavigate={handleNavigate}
         onOpenPrintCenter={() => handleOpenPrintCenter('DailySchedule')}
+        currentUser={{ name: currentUser.name, role: currentUser.role }}
       />
 
-      {/* Main Content Area */}
       <div className="flex-1 flex flex-col overflow-hidden min-w-0">
-        {/* Top Header */}
         <TopBar
           currentUser={currentUser}
-          availableUsers={availableUsers}
-          onSwitchUser={async (userId) => {
-            await handleLogin(userId);
-          }}
           onLogout={handleLogout}
           onOpenSearch={() => setIsSearchOpen(true)}
           onOpenGlobalSearch={() => setIsSearchOpen(true)}
@@ -196,7 +191,6 @@ export default function App() {
           onOpenPrintCenter={(docType) => handleOpenPrintCenter(docType)}
         />
 
-        {/* Dynamic Center Work Area */}
         <main className="flex-1 overflow-y-auto bg-slate-50">
           {currentSection === 'dashboard' && (
             <ReceptionistDashboard
@@ -239,8 +233,7 @@ export default function App() {
             )
           )}
 
-          {currentSection === 'doctors' && <DoctorsHub />}
-
+          {currentSection === 'doctors'       && <DoctorsHub />}
           {currentSection === 'prescriptions' && (
             <PrescriptionsHub
               onOpenNewPrescription={handleOpenNewPrescription}
@@ -248,15 +241,12 @@ export default function App() {
               onSelectPatient={handleSelectPatient}
             />
           )}
-
-          {currentSection === 'treatments' && (
-            <TreatmentsHub onSelectPatient={handleSelectPatient} />
-          )}
-
-          {currentSection === 'reminders' && <RemindersHub />}
-          {currentSection === 'reports'   && <ReportsHub />}
-          {currentSection === 'audit'     && <AuditLogsHub />}
-          {currentSection === 'settings'  && <SettingsHub />}
+          {currentSection === 'treatments'    && <TreatmentsHub onSelectPatient={handleSelectPatient} />}
+          {currentSection === 'reminders'     && <RemindersHub />}
+          {currentSection === 'reports'       && <ReportsHub />}
+          {currentSection === 'audit'         && <AuditLogsHub />}
+          {currentSection === 'settings'      && <SettingsHub />}
+          {currentSection === 'staff'         && <UsersHub currentUserId={currentUser.id} />}
         </main>
       </div>
 

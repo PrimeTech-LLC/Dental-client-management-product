@@ -75,12 +75,16 @@ async function run() {
     await client.query('BEGIN');
 
     // ── Users ───────────────────────────────────────────────────
+    // Passwords are hashed with pgcrypto crypt() using bf (blowfish).
+    // Default password for all accounts: "dental123"
     await client.query(`
-      INSERT INTO users (id, name, email, role, is_active, created_at, updated_at) VALUES
-        ('user-rec-1',  'Emma Watson',        'reception@apexdentalcare.com', 'RECEPTIONIST', true, NOW(), NOW()),
-        ('user-doc-1',  'Dr. Sarah Mitchell', 's.mitchell@apexdentalcare.com', 'DOCTOR',       true, NOW(), NOW()),
-        ('user-doc-2',  'Dr. David Chen',     'd.chen@apexdentalcare.com',     'DOCTOR',       true, NOW(), NOW()),
-        ('user-adm-1',  'Clinical Admin',     'admin@apexdentalcare.com',      'ADMIN',        true, NOW(), NOW())
+      INSERT INTO users (id, name, email, role, password_hash, is_active, created_at, updated_at) VALUES
+        ('user-rec-1', 'Saad',  'saad@apexdentalcare.com',  'RECEPTIONIST', crypt('dental123', gen_salt('bf')), true, NOW(), NOW()),
+        ('user-rec-2', 'Ather', 'ather@apexdentalcare.com', 'RECEPTIONIST', crypt('dental123', gen_salt('bf')), true, NOW(), NOW()),
+        ('user-rec-3', 'Ali',   'ali@apexdentalcare.com',   'RECEPTIONIST', crypt('dental123', gen_salt('bf')), true, NOW(), NOW()),
+        ('user-doc-1', 'Dr. Sarah Mitchell', 's.mitchell@apexdentalcare.com', 'DOCTOR', NULL, true, NOW(), NOW()),
+        ('user-doc-2', 'Dr. David Chen',     'd.chen@apexdentalcare.com',     'DOCTOR', NULL, true, NOW(), NOW()),
+        ('user-adm-1', 'Clinical Admin',     'admin@apexdentalcare.com',      'ADMIN',  NULL, true, NOW(), NOW())
       ON CONFLICT (id) DO NOTHING
     `);
 
@@ -168,14 +172,14 @@ async function run() {
     const today = new Date().toISOString().slice(0, 10);
     await client.query(`
       INSERT INTO appointments (id, patient_id, doctor_id, appointment_date, start_time, end_time, duration_minutes, appointment_type, status, reason, created_by) VALUES
-        ('apt-1','pt-1','doc-1',$1,'09:00','09:45',45,'Consultation',  'CONFIRMED', 'Full orthodontic assessment and aligner fitting review','Emma Watson'),
-        ('apt-2','pt-2','doc-2',$1,'09:30','10:30',60,'Root Canal',    'ARRIVED',   'Continuing root canal treatment on molar #30 (second session)','Emma Watson'),
-        ('apt-3','pt-3','doc-1',$1,'10:00','10:30',30,'Cleaning',      'SCHEDULED', 'Routine 6-month prophylaxis cleaning','Emma Watson'),
-        ('apt-4','pt-4','doc-1',$1,'11:00','11:45',45,'Crown',         'IN_PROGRESS','Permanent crown cementation — tooth #14','Emma Watson'),
-        ('apt-5','pt-5','doc-2',$1,'11:30','12:00',30,'Follow-up',     'SCHEDULED', 'Post-extraction healing review','Emma Watson'),
-        ('apt-6','pt-6','doc-1',$1,'14:00','14:30',30,'Filling',       'SCHEDULED', 'Composite filling — tooth #3 occlusal caries','Emma Watson'),
-        ('apt-7','pt-1','doc-2',$1,'15:00','15:45',45,'Implant',       'SCHEDULED', 'Titanium implant placement consultation — site #19','Emma Watson'),
-        ('apt-8','pt-3','doc-2',$1,'16:00','16:30',30,'Consultation',  'SCHEDULED', 'TMJ assessment and night guard fitting','Emma Watson')
+        ('apt-1','pt-1','doc-1',$1,'09:00','09:45',45,'Consultation',  'CONFIRMED', 'Full orthodontic assessment and aligner fitting review','Saad'),
+        ('apt-2','pt-2','doc-2',$1,'09:30','10:30',60,'Root Canal',    'ARRIVED',   'Continuing root canal treatment on molar #30 (second session)','Saad'),
+        ('apt-3','pt-3','doc-1',$1,'10:00','10:30',30,'Cleaning',      'SCHEDULED', 'Routine 6-month prophylaxis cleaning','Saad'),
+        ('apt-4','pt-4','doc-1',$1,'11:00','11:45',45,'Crown',         'IN_PROGRESS','Permanent crown cementation — tooth #14','Saad'),
+        ('apt-5','pt-5','doc-2',$1,'11:30','12:00',30,'Follow-up',     'SCHEDULED', 'Post-extraction healing review','Saad'),
+        ('apt-6','pt-6','doc-1',$1,'14:00','14:30',30,'Filling',       'SCHEDULED', 'Composite filling — tooth #3 occlusal caries','Saad'),
+        ('apt-7','pt-1','doc-2',$1,'15:00','15:45',45,'Implant',       'SCHEDULED', 'Titanium implant placement consultation — site #19','Saad'),
+        ('apt-8','pt-3','doc-2',$1,'16:00','16:30',30,'Consultation',  'SCHEDULED', 'TMJ assessment and night guard fitting','Saad')
       ON CONFLICT (id) DO NOTHING
     `, [today]);
 
@@ -225,7 +229,7 @@ async function run() {
     `);
 
     await client.query('COMMIT');
-    console.log('✅  Seed complete — 6 patients, 2 doctors, 8 appointments, 5 treatments, 2 prescriptions');
+    console.log('✅  Seed complete — 3 receptionists (Saad/Ather/Ali, password: dental123), 6 patients, 2 doctors, 8 appointments');
 
   } catch (err) {
     await client.query('ROLLBACK').catch(() => {});

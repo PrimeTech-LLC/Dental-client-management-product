@@ -80,7 +80,7 @@ export const PatientProfileView: React.FC<PatientProfileViewProps> = ({
 
   const [showAddAllergyModal, setShowAddAllergyModal] = useState(false);
   const [newAllergen, setNewAllergen] = useState('');
-  const [newAllergySeverity, setNewAllergySeverity] = useState<'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL'>('HIGH');
+  const [newAllergySeverity, setNewAllergySeverity] = useState<'LOW' | 'MEDIUM' | 'HIGH' | 'SEVERE'>('HIGH');
   const [newAllergyReaction, setNewAllergyReaction] = useState('');
 
   const [showAddTreatmentModal, setShowAddTreatmentModal] = useState(false);
@@ -178,9 +178,9 @@ export const PatientProfileView: React.FC<PatientProfileViewProps> = ({
     e.preventDefault();
     if (!newConditionName) return;
     await api.addMedicalHistory(patientId, {
-      conditionName: newConditionName,
+      condition: newConditionName,
       notes: newConditionNotes,
-      diagnosedDate: new Date().toISOString().split('T')[0],
+      diagnosedAt: new Date().toISOString().split('T')[0],
     });
     setNewConditionName('');
     setNewConditionNotes('');
@@ -195,7 +195,7 @@ export const PatientProfileView: React.FC<PatientProfileViewProps> = ({
     await api.addAllergy(patientId, {
       allergen: newAllergen,
       severity: newAllergySeverity,
-      reactionNotes: newAllergyReaction,
+      reaction: newAllergyReaction,
     });
     setNewAllergen('');
     setNewAllergyReaction('');
@@ -944,7 +944,7 @@ export const PatientProfileView: React.FC<PatientProfileViewProps> = ({
                 <option value="LOW">Low (Mild rash)</option>
                 <option value="MEDIUM">Medium (Hives, swelling)</option>
                 <option value="HIGH">High (Severe reaction)</option>
-                <option value="CRITICAL">Critical (Anaphylaxis)</option>
+                <option value="SEVERE">Severe (Anaphylaxis)</option>
               </select>
             </div>
             <div>
