@@ -1,0 +1,15 @@
+{
+  "name": "dental-client-management-product",
+  "private": true,
+  "scripts": {
+    "dev": "npm run dev --prefix app",
+    "dev:api": "npm run dev:api --prefix app",
+    "dev:ui": "npm run dev:ui --prefix app",
+    "build": "npm run build --prefix app",
+    "start": "npm run start --prefix app",
+    "migrate": "npm run migrate --prefix app",
+    "migrate:seed": "npm run migrate:seed --prefix app",
+    "migrate:reset": "npm run migrate:reset --prefix app",
+    "lint": "npm run lint --prefix app"
+  }
+}
