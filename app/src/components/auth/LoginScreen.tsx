@@ -1,4 +1,5 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import { api } from '../../lib/api.js';
 
 interface LoginScreenProps {
   onLogin: (username: string, password: string) => Promise<void>;
@@ -10,6 +11,17 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLogin }) => {
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [clinicName, setClinicName] = useState('');
+  const [clinicTagline, setClinicTagline] = useState('');
+
+  useEffect(() => {
+    api.getPublicClinic()
+      .then(s => {
+        setClinicName(s.clinicName || '');
+        setClinicTagline(s.tagline || '');
+      })
+      .catch(() => {/* silently ignore — clinic name is optional on login screen */});
+  }, []);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -37,8 +49,12 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLogin }) => {
               <path d="M12 2C9.5 2 7 3.5 6 6c-.8 2-.6 4.5-.3 6.5.3 2 .8 4 1.8 5.5.5.8 1.1 1 1.5 1s.7-.3 1-.8c.3-.5.5-1.2.7-2 .2-.8.3-1.7.3-2.2s.2-.5.5-.5.5.2.5.5c0 .5.1 1.4.3 2.2.2.8.4 1.5.7 2 .3.5.6.8 1 .8s1-.2 1.5-1c1-1.5 1.5-3.5 1.8-5.5.3-2 .5-4.5-.3-6.5C17 3.5 14.5 2 12 2z" />
             </svg>
           </div>
-          <h1 className="text-2xl font-black text-slate-900 tracking-tight">Apex Dental Care</h1>
-          <p className="text-xs text-slate-500 font-medium">Receptionist Management System</p>
+          <h1 className="text-2xl font-black text-slate-900 tracking-tight">
+            {clinicName || 'Dental Clinic'}
+          </h1>
+          <p className="text-xs text-slate-500 font-medium">
+            {clinicTagline || 'Receptionist Management System'}
+          </p>
         </div>
 
         {/* Login Card */}
@@ -152,7 +168,7 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLogin }) => {
         </div>
 
         <p className="text-center text-[11px] text-slate-400">
-          Apex Dental Care & Implant Center · Secure Internal System
+          {clinicName || 'Dental Clinic'} · Secure Internal System
         </p>
       </div>
     </div>

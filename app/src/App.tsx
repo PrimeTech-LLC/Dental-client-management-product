@@ -28,7 +28,7 @@ import { PrintCenterModal, PrintDocType } from './components/print/PrintCenterMo
 // Auth
 import { LoginScreen } from './components/auth/LoginScreen.js';
 
-import { Appointment, Prescription, User } from './types/index.js';
+import { Appointment, Prescription, User, ClinicSettings } from './types/index.js';
 import { api } from './lib/api.js';
 
 export default function App() {

@@ -32,7 +32,7 @@ export const TopBar: React.FC<TopBarProps> = ({
 }) => {
   const todayFormatted = format(new Date(), 'EEEE, dd MMMM yyyy');
   const triggerSearch = onOpenGlobalSearch || onOpenSearch || (() => {});
-  const clinicName = settings?.clinicName || 'Apex Dental Care';
+  const clinicName = settings?.clinicName || '';
 
   return (
     <header className="h-16 bg-white border-b border-slate-200 flex items-center justify-between px-8 shrink-0 z-20">

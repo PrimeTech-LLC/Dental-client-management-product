@@ -45,6 +45,7 @@ async function fetchJson<T>(url: string, options?: RequestInit): Promise<T> {
 export const api = {
   // Auth
   getAuthMe: () => fetchJson<{ user: User | null }>('/api/auth/me'),
+  getPublicClinic: () => fetchJson<{ clinicName: string; tagline: string }>('/api/public/clinic'),
   login: (username: string, password: string) => fetchJson<{ user: User }>('/api/auth/login', {
     method: 'POST',
     body: JSON.stringify({ username, password })

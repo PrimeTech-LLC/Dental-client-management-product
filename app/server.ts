@@ -128,6 +128,17 @@ app.post('/api/auth/login', async (req, res) => {
   }
 });
 
+// Public clinic identity endpoint — returns only non-sensitive branding info
+// so the login screen can display the clinic name before authentication.
+app.get('/api/public/clinic', async (_req, res) => {
+  try {
+    const settings = await db.getSettings();
+    res.json({ success: true, data: { clinicName: settings.clinicName, tagline: settings.tagline } });
+  } catch (err: any) {
+    res.json({ success: true, data: { clinicName: '', tagline: '' } });
+  }
+});
+
 app.post('/api/auth/logout', (req, res) => {
   clearAuthCookie(res);
   res.json({ success: true });
@@ -141,6 +152,7 @@ app.use('/api', (req, res, next) => {
     ['GET',  '/auth/me'],
     ['POST', '/auth/login'],
     ['POST', '/auth/logout'],
+    ['GET',  '/public/clinic'],
   ];
   const isPublic = pub.some(([m, p]) => req.method === m && req.path === p);
   if (isPublic) return next();
