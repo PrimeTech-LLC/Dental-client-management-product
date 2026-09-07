@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { X, Plus, Trash2, FileText, AlertTriangle, Printer, Check, User, Stethoscope } from 'lucide-react';
 import { Patient, Doctor, PrescriptionItem } from '../../types/index.js';
 import { api } from '../../lib/api.js';
+import { COMMON_MEDS } from '../../lib/constants.js';
 
 interface PrescriptionEditorModalProps {
   isOpen: boolean;
@@ -12,16 +13,6 @@ interface PrescriptionEditorModalProps {
   onOpenPrintCenter?: (docType: string, appt?: any, patientId?: string, prescription?: any) => void;
 }
 
-const COMMON_MEDS = [
-  { name: 'Amoxicillin', strength: '500mg', route: 'Oral', freq: '1-1-1 (TDS)', dur: '5 days', instructions: 'Take after food with water' },
-  { name: 'Amoxicillin + Clavulanic Acid (Augmentin)', strength: '625mg', route: 'Oral', freq: '1-0-1 (BD)', dur: '5 days', instructions: 'Take with food' },
-  { name: 'Metronidazole', strength: '400mg', route: 'Oral', freq: '1-1-1 (TDS)', dur: '5 days', instructions: 'Strictly avoid alcohol during course' },
-  { name: 'Ibuprofen', strength: '400mg', route: 'Oral', freq: '1-0-1 (BD)', dur: '3 days', instructions: 'Take strictly after meals' },
-  { name: 'Paracetamol (Acetaminophen)', strength: '500mg', route: 'Oral', freq: '1-1-1 (TDS)', dur: '3 days', instructions: 'For pain or fever SOS' },
-  { name: 'Chlorhexidine Gluconate Mouthwash', strength: '0.12%', route: 'Rinse', freq: '1-0-1 (BD)', dur: '14 days', instructions: 'Rinse 10ml for 60s, do not eat for 30m' },
-  { name: 'Ketorolac Tromethamine', strength: '10mg', route: 'Oral', freq: 'SOS (Max 3/day)', dur: '2 days', instructions: 'For severe post-op dental pain' },
-  { name: 'Azithromycin', strength: '500mg', route: 'Oral', freq: '1-0-0 (OD)', dur: '3 days', instructions: 'Take 1 hr before or 2 hr after food' }
-];
 
 export const PrescriptionEditorModal: React.FC<PrescriptionEditorModalProps> = ({
   isOpen,
@@ -35,20 +26,25 @@ export const PrescriptionEditorModal: React.FC<PrescriptionEditorModalProps> = (
   const [doctors, setDoctors] = useState<Doctor[]>([]);
   const [selectedPatientId, setSelectedPatientId] = useState(initialPatientId || '');
   const [selectedDoctorId, setSelectedDoctorId] = useState(initialDoctorId || '');
-  const [diagnosis, setDiagnosis] = useState('Acute Pulpitis & Post-operative care');
+  const [diagnosis, setDiagnosis] = useState('');
   const [chiefComplaint, setChiefComplaint] = useState('');
-  const [generalAdvice, setGeneralAdvice] = useState('Maintain oral hygiene, avoid hard foods on treated quadrant, warm salt water rinses after 24 hrs.');
+  const [generalAdvice, setGeneralAdvice] = useState('');
   const [followUpDays, setFollowUpDays] = useState(7);
   
   const [items, setItems] = useState<Partial<PrescriptionItem>[]>([
-    { medicineName: 'Amoxicillin', strength: '500mg', dosage: '1 Capsule', frequency: '1-1-1', duration: '5 days', route: 'Oral', instructions: 'After food' },
-    { medicineName: 'Ibuprofen', strength: '400mg', dosage: '1 Tablet', frequency: '1-0-1', duration: '3 days', route: 'Oral', instructions: 'After food for pain relief' }
+    { medicineName: '', strength: '', dosage: '', frequency: '', duration: '', route: 'Oral', instructions: '' }
   ]);
 
   const [submitting, setSubmitting] = useState(false);
 
   useEffect(() => {
     if (!isOpen) return;
+    // Reset form to blank state each time modal opens
+    setDiagnosis('');
+    setChiefComplaint('');
+    setGeneralAdvice('');
+    setFollowUpDays(7);
+    setItems([{ medicineName: '', strength: '', dosage: '', frequency: '', duration: '', route: 'Oral', instructions: '' }]);
     async function load() {
       try {
         const [docs, pts] = await Promise.all([
@@ -103,7 +99,7 @@ export const PrescriptionEditorModal: React.FC<PrescriptionEditorModalProps> = (
     setItems(prev => prev.map((item, i) => i === index ? { ...item, [field]: value } : item));
   };
 
-  const handleSelectPreset = (preset: typeof COMMON_MEDS[0]) => {
+  const handleSelectPreset = (preset: typeof COMMON_MEDS[number]) => {
     setItems(prev => [
       ...prev,
       {

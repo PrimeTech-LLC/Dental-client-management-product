@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { ToothCondition, DentalHistory } from '../../types/index.js';
 import { Check, Edit3, X } from 'lucide-react';
+import { TOOTH_CONDITIONS } from '../../lib/constants.js';
 
 interface DentalChartProps {
   patientId: string;
@@ -9,16 +10,6 @@ interface DentalChartProps {
   readOnly?: boolean;
 }
 
-const TOOTH_CONDITIONS: { value: ToothCondition; label: string; color: string; bg: string }[] = [
-  { value: 'HEALTHY', label: 'Sound / Healthy', color: '#10b981', bg: 'bg-emerald-50 text-emerald-800 border-emerald-300' },
-  { value: 'CARIES', label: 'Dental Caries (Cavity)', color: '#ef4444', bg: 'bg-rose-50 text-rose-800 border-rose-300' },
-  { value: 'FILLED', label: 'Restoration / Filled', color: '#3b82f6', bg: 'bg-blue-50 text-blue-800 border-blue-300' },
-  { value: 'CROWN', label: 'Crown / Bridge Abutment', color: '#f59e0b', bg: 'bg-amber-50 text-amber-800 border-amber-300' },
-  { value: 'ROOT_CANAL', label: 'Root Canal Treated (RCT)', color: '#8b5cf6', bg: 'bg-purple-50 text-purple-800 border-purple-300' },
-  { value: 'MISSING', label: 'Missing / Extracted', color: '#64748b', bg: 'bg-slate-100 text-slate-700 border-slate-300' },
-  { value: 'IMPLANT', label: 'Dental Implant', color: '#06b6d4', bg: 'bg-cyan-50 text-cyan-800 border-cyan-300' },
-  { value: 'EXTRACTION_INDICATED', label: 'Extraction Indicated', color: '#dc2626', bg: 'bg-red-50 text-red-900 border-red-300' },
-];
 
 export const DentalChart: React.FC<DentalChartProps> = ({
   patientId,

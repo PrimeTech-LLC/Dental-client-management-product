@@ -3,6 +3,7 @@ import { X, Calendar, Clock, User, Stethoscope, AlertTriangle, Check, UserPlus, 
 import { Doctor, Patient, AppointmentType, ConflictCheckResult } from '../../types/index.js';
 import { api } from '../../lib/api.js';
 import { formatTime, formatDate } from '../../lib/utils.js';
+import { APPOINTMENT_TYPES, TIME_SLOTS, DURATION_OPTIONS } from '../../lib/constants.js';
 
 interface NewAppointmentModalProps {
   isOpen: boolean;
@@ -13,26 +14,6 @@ interface NewAppointmentModalProps {
   initialDate?: string;
   onOpenNewPatientInline?: () => void;
 }
-
-const APPOINTMENT_TYPES: AppointmentType[] = [
-  'Consultation',
-  'Follow-up',
-  'Cleaning',
-  'Filling',
-  'Extraction',
-  'Root Canal',
-  'Crown',
-  'Implant',
-  'Orthodontic',
-  'Emergency',
-  'Other'
-];
-
-const TIME_SLOTS = [
-  '09:00', '09:30', '10:00', '10:30', '11:00', '11:30',
-  '12:00', '12:30', '14:00', '14:30', '15:00', '15:30',
-  '16:00', '16:30', '17:00'
-];
 
 export const NewAppointmentModal: React.FC<NewAppointmentModalProps> = ({
   isOpen,
@@ -349,11 +330,9 @@ export const NewAppointmentModal: React.FC<NewAppointmentModalProps> = ({
                 onChange={(e) => setDurationMinutes(Number(e.target.value))}
                 className="w-full px-3 py-2 bg-white border border-slate-300 rounded-lg text-xs focus:ring-1 focus:ring-teal-500 focus:outline-hidden"
               >
-                <option value={15}>15 mins (Brief check)</option>
-                <option value={30}>30 mins (Standard)</option>
-                <option value={45}>45 mins (Endo / Filling)</option>
-                <option value={60}>60 mins (Surgery / Crown)</option>
-                <option value={90}>90 mins (Complex / Multiple)</option>
+                {DURATION_OPTIONS.map(o => (
+                  <option key={o.value} value={o.value}>{o.label}</option>
+                ))}
               </select>
             </div>
 

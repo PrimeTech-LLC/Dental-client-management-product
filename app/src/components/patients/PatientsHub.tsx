@@ -13,6 +13,7 @@ import {
 import { Patient, BloodGroup } from '../../types/index.js';
 import { api } from '../../lib/api.js';
 import { calculateAge, formatDate } from '../../lib/utils.js';
+import { BLOOD_GROUPS_WITH_ALL } from '../../lib/constants.js';
 
 interface PatientsHubProps {
   onSelectPatient: (patientId: string) => void;
@@ -21,7 +22,7 @@ interface PatientsHubProps {
   onOpenPrintCenter: (docType: string, appointment?: any, patientId?: string) => void;
 }
 
-const BLOOD_GROUPS: (BloodGroup | 'ALL')[] = ['ALL', 'A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-'];
+
 
 export const PatientsHub: React.FC<PatientsHubProps> = ({
   onSelectPatient,
@@ -108,7 +109,7 @@ export const PatientsHub: React.FC<PatientsHubProps> = ({
             onChange={(e) => setBloodGroupFilter(e.target.value)}
             className="bg-slate-50 border border-slate-300 rounded-md px-2.5 py-1.5 text-slate-700 focus:outline-hidden"
           >
-            {BLOOD_GROUPS.map(bg => (
+            {BLOOD_GROUPS_WITH_ALL.map(bg => (
               <option key={bg} value={bg}>{bg}</option>
             ))}
           </select>

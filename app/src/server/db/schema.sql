@@ -277,7 +277,7 @@ CREATE INDEX IF NOT EXISTS idx_reminders_status      ON appointment_reminders(st
 -- ─── CLINIC SETTINGS ──────────────────────────────────────────
 CREATE TABLE IF NOT EXISTS clinic_settings (
   id                          TEXT PRIMARY KEY DEFAULT 'clinic-default',
-  clinic_name                 TEXT NOT NULL DEFAULT 'Apex Dental Care',
+  clinic_name                 TEXT NOT NULL DEFAULT '',
   tagline                     TEXT,
   logo_url                    TEXT,
   address_line1               TEXT,

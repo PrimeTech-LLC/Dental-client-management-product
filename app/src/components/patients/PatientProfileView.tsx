@@ -24,6 +24,7 @@ import {
 } from 'lucide-react';
 import { Patient, ToothCondition, Appointment, Treatment, Prescription, Visit, MedicalHistory, Allergy, Gender, BloodGroup } from '../../types/index.js';
 import { api } from '../../lib/api.js';
+import { BLOOD_GROUPS, GENDER_OPTIONS } from '../../lib/constants.js';
 import { formatDate, formatTime, calculateAge, getStatusBadgeClasses } from '../../lib/utils.js';
 import { DentalChart } from './DentalChart.js';
 
@@ -38,7 +39,6 @@ interface PatientProfileViewProps {
 
 type TabType = 'overview' | 'dental-chart' | 'medical' | 'allergies' | 'appointments' | 'treatments' | 'prescriptions' | 'visits';
 
-const BLOOD_GROUPS: BloodGroup[] = ['A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-', 'UNKNOWN'];
 
 export const PatientProfileView: React.FC<PatientProfileViewProps> = ({
   patientId,
@@ -819,9 +819,9 @@ export const PatientProfileView: React.FC<PatientProfileViewProps> = ({
                     <label className="font-semibold text-slate-700 block mb-1">Gender *</label>
                     <select value={editGender} onChange={e => setEditGender(e.target.value as Gender)}
                       className="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-lg text-xs focus:bg-white focus:ring-1 focus:ring-teal-500 focus:outline-none">
-                      <option value="MALE">Male</option>
-                      <option value="FEMALE">Female</option>
-                      <option value="OTHER">Other</option>
+                      {GENDER_OPTIONS.map(g => (
+                        <option key={g.value} value={g.value}>{g.label}</option>
+                      ))}
                     </select>
                   </div>
                   <div>

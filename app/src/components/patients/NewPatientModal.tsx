@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { X, UserPlus, AlertCircle, Check, Phone, ShieldAlert, ArrowRight } from 'lucide-react';
 import { Patient, Gender, BloodGroup } from '../../types/index.js';
 import { api } from '../../lib/api.js';
+import { BLOOD_GROUPS, GENDER_OPTIONS } from '../../lib/constants.js';
 
 interface NewPatientModalProps {
   isOpen: boolean;
@@ -10,7 +11,6 @@ interface NewPatientModalProps {
   onSelectExistingPatient?: (patientId: string) => void;
 }
 
-const BLOOD_GROUPS: BloodGroup[] = ['A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-', 'UNKNOWN'];
 
 export const NewPatientModal: React.FC<NewPatientModalProps> = ({
   isOpen,
@@ -252,9 +252,9 @@ export const NewPatientModal: React.FC<NewPatientModalProps> = ({
                   onChange={(e) => setGender(e.target.value as Gender)}
                   className="w-full px-3 py-2 bg-white border border-slate-300 rounded-lg text-xs focus:ring-1 focus:ring-teal-500 focus:outline-hidden"
                 >
-                  <option value="MALE">Male</option>
-                  <option value="FEMALE">Female</option>
-                  <option value="OTHER">Other</option>
+                  {GENDER_OPTIONS.map(g => (
+                    <option key={g.value} value={g.value}>{g.label}</option>
+                  ))}
                 </select>
               </div>
 

@@ -264,7 +264,7 @@ export const GlobalSearchModal: React.FC<GlobalSearchModalProps> = ({
         {/* Footer info */}
         <div className="p-2.5 bg-slate-100 border-t border-slate-200 text-[11px] text-slate-500 flex items-center justify-between px-4">
           <span>Tip: Press <kbd className="px-1 py-0.5 bg-white border border-slate-300 rounded font-mono text-[10px]">Esc</kbd> anytime to dismiss search</span>
-          <span className="font-medium text-teal-700">Apex Dental Search Index</span>
+          <span className="font-medium text-teal-700">Global Search</span>
         </div>
       </div>
     </div>
