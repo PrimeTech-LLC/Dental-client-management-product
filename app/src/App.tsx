@@ -35,6 +35,7 @@ export default function App() {
   // ── Auth state ───────────────────────────────────────────────
   const [currentUser, setCurrentUser] = useState<User | null>(null);
   const [authLoading, setAuthLoading] = useState(true);
+  const [clinicSettings, setClinicSettings] = useState<ClinicSettings | null>(null);
 
   // ── Navigation state ─────────────────────────────────────────
   const [currentSection, setCurrentSection] = useState<NavSection>('dashboard');
@@ -68,7 +69,12 @@ export default function App() {
   // ── Bootstrap auth from cookie ───────────────────────────────
   useEffect(() => {
     api.getAuthMe()
-      .then(({ user }) => setCurrentUser(user ?? null))
+      .then(({ user }) => {
+        setCurrentUser(user ?? null);
+        if (user) {
+          api.getSettings().then(setClinicSettings).catch(() => {});
+        }
+      })
       .catch(() => setCurrentUser(null))
       .finally(() => setAuthLoading(false));
   }, []);
@@ -89,11 +95,13 @@ export default function App() {
   const handleLogin = useCallback(async (username: string, password: string) => {
     const { user } = await api.login(username, password);
     setCurrentUser(user);
+    api.getSettings().then(setClinicSettings).catch(() => {});
   }, []);
 
   const handleLogout = useCallback(async () => {
     try { await api.logout(); } catch { /* ignore */ }
     setCurrentUser(null);
+    setClinicSettings(null);
     setCurrentSection('dashboard');
     setSelectedPatientId(null);
   }, []);
@@ -159,7 +167,7 @@ export default function App() {
       <div className="h-screen flex items-center justify-center bg-slate-50">
         <div className="flex flex-col items-center gap-3">
           <div className="w-8 h-8 border-2 border-teal-600 border-t-transparent rounded-full animate-spin" />
-          <p className="text-xs text-slate-500 font-medium">Loading Apex Dental...</p>
+          <p className="text-xs text-slate-500 font-medium">Loading...</p>
         </div>
       </div>
     );
@@ -189,6 +197,7 @@ export default function App() {
           onOpenNewAppointment={() => handleOpenNewAppointment()}
           onOpenNewPatient={() => setIsNewPatientOpen(true)}
           onOpenPrintCenter={(docType) => handleOpenPrintCenter(docType)}
+          settings={clinicSettings ?? undefined}
         />
 
         <main className="flex-1 overflow-y-auto bg-slate-50">

@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Settings, Save, CheckCircle2, Building, Clock, Phone, Mail, Globe, MapPin } from 'lucide-react';
 import { ClinicSetting } from '../../types/index.js';
 import { api } from '../../lib/api.js';
+import { SLOT_DURATION_OPTIONS } from '../../lib/constants.js';
 
 export const SettingsHub: React.FC = () => {
   const [settings, setSettings] = useState<ClinicSetting | null>(null);
@@ -261,10 +262,9 @@ export const SettingsHub: React.FC = () => {
                 onChange={(e) => setSlotDuration(Number(e.target.value))}
                 className="w-full p-2.5 border border-slate-300 rounded-lg text-xs"
               >
-                <option value={15}>15 Minutes</option>
-                <option value={30}>30 Minutes (Standard)</option>
-                <option value={45}>45 Minutes</option>
-                <option value={60}>60 Minutes (Long)</option>
+                {SLOT_DURATION_OPTIONS.map(o => (
+                  <option key={o.value} value={o.value}>{o.label}</option>
+                ))}
               </select>
             </div>
           </div>

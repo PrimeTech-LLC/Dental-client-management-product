@@ -3,6 +3,7 @@ import { X, RefreshCw, Calendar, Clock, AlertTriangle, Check } from 'lucide-reac
 import { Appointment, ConflictCheckResult } from '../../types/index.js';
 import { api } from '../../lib/api.js';
 import { formatTime, formatDate } from '../../lib/utils.js';
+import { TIME_SLOTS } from '../../lib/constants.js';
 
 interface RescheduleModalProps {
   isOpen: boolean;
@@ -10,12 +11,6 @@ interface RescheduleModalProps {
   onClose: () => void;
   onSuccess: () => void;
 }
-
-const TIME_SLOTS = [
-  '09:00', '09:30', '10:00', '10:30', '11:00', '11:30',
-  '12:00', '12:30', '14:00', '14:30', '15:00', '15:30',
-  '16:00', '16:30', '17:00'
-];
 
 export const RescheduleModal: React.FC<RescheduleModalProps> = ({
   isOpen,
@@ -25,7 +20,7 @@ export const RescheduleModal: React.FC<RescheduleModalProps> = ({
 }) => {
   const [newDate, setNewDate] = useState('');
   const [newStartTime, setNewStartTime] = useState('09:00');
-  const [reason, setReason] = useState('Patient requested change in time');
+  const [reason, setReason] = useState('');
   const [allowOverride, setAllowOverride] = useState(false);
   const [conflictResult, setConflictResult] = useState<ConflictCheckResult | null>(null);
   const [submitting, setSubmitting] = useState(false);

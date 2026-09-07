@@ -19,6 +19,7 @@ import { Appointment, Doctor, Patient } from '../../types/index.js';
 import { api } from '../../lib/api.js';
 import { formatTime, formatDate, getStatusBadgeClasses } from '../../lib/utils.js';
 import { format, addDays, subDays, startOfWeek, endOfWeek, parseISO, isSameDay } from 'date-fns';
+import { TIME_SLOTS, APPOINTMENT_STATUSES } from '../../lib/constants.js';
 
 interface AppointmentsHubProps {
   onOpenNewAppointment: (initialDoctorId?: string, initialDate?: string) => void;
@@ -29,12 +30,6 @@ interface AppointmentsHubProps {
 }
 
 type ViewMode = 'day' | 'week' | 'list';
-
-const TIME_SLOTS = [
-  '09:00', '09:30', '10:00', '10:30', '11:00', '11:30',
-  '12:00', '12:30', '14:00', '14:30', '15:00', '15:30',
-  '16:00', '16:30', '17:00', '17:30'
-];
 
 export const AppointmentsHub: React.FC<AppointmentsHubProps> = ({
   onOpenNewAppointment,
@@ -234,13 +229,9 @@ export const AppointmentsHub: React.FC<AppointmentsHubProps> = ({
             onChange={(e) => setSelectedStatus(e.target.value)}
             className="bg-slate-50 border border-slate-300 rounded-md px-2.5 py-1.5 text-slate-700 focus:outline-hidden"
           >
-            <option value="ALL">All Statuses</option>
-            <option value="SCHEDULED">Scheduled</option>
-            <option value="CONFIRMED">Confirmed</option>
-            <option value="ARRIVED">Arrived</option>
-            <option value="IN_PROGRESS">In Progress</option>
-            <option value="COMPLETED">Completed</option>
-            <option value="CANCELLED">Cancelled</option>
+            {APPOINTMENT_STATUSES.map(s => (
+              <option key={s.value} value={s.value}>{s.label}</option>
+            ))}
           </select>
 
           {/* Search */}

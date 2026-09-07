@@ -18,16 +18,7 @@ import {
 import { Doctor, DoctorAvailability, DoctorScheduleException } from '../../types/index.js';
 import { api } from '../../lib/api.js';
 import { formatDate, formatTime } from '../../lib/utils.js';
-
-const DAYS_OF_WEEK = [
-  { day: 1, label: 'Monday' },
-  { day: 2, label: 'Tuesday' },
-  { day: 3, label: 'Wednesday' },
-  { day: 4, label: 'Thursday' },
-  { day: 5, label: 'Friday' },
-  { day: 6, label: 'Saturday' },
-  { day: 0, label: 'Sunday' }
-];
+import { DAYS_OF_WEEK, DOCTOR_DEFAULT_COLOR } from '../../lib/constants.js';
 
 export const DoctorsHub: React.FC = () => {
   const [doctors, setDoctors] = useState<Doctor[]>([]);
@@ -38,17 +29,17 @@ export const DoctorsHub: React.FC = () => {
   const [showDoctorModal, setShowDoctorModal] = useState(false);
   const [editingDoctorId, setEditingDoctorId] = useState<string | null>(null);
   const [formFullName, setFormFullName] = useState('');
-  const [formSpecialization, setFormSpecialization] = useState('General & Cosmetic Dentistry');
+  const [formSpecialization, setFormSpecialization] = useState('');
   const [formLicense, setFormLicense] = useState('');
   const [formPhone, setFormPhone] = useState('');
   const [formEmail, setFormEmail] = useState('');
-  const [formColor, setFormColor] = useState('#0d9488');
+  const [formColor, setFormColor] = useState(DOCTOR_DEFAULT_COLOR);
   const [formActive, setFormActive] = useState(true);
 
   // Exception Form
   const [showExceptionModal, setShowExceptionModal] = useState(false);
   const [exceptionDate, setExceptionDate] = useState('');
-  const [exceptionReason, setExceptionReason] = useState('Annual Leave');
+  const [exceptionReason, setExceptionReason] = useState('');
 
   const loadDoctors = async () => {
     try {
@@ -82,11 +73,11 @@ export const DoctorsHub: React.FC = () => {
   const handleOpenCreateDoctor = () => {
     setEditingDoctorId(null);
     setFormFullName('');
-    setFormSpecialization('General Dentistry');
+    setFormSpecialization('');
     setFormLicense('');
     setFormPhone('');
     setFormEmail('');
-    setFormColor('#0d9488');
+    setFormColor(DOCTOR_DEFAULT_COLOR);
     setFormActive(true);
     setShowDoctorModal(true);
   };
