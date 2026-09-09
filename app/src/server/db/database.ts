@@ -35,6 +35,7 @@ function mapUser(r: any): User {
     email: r.email,
     role: r.role,
     isActive: r.is_active,
+    mustChangePassword: r.must_change_password ?? false,
     lastLoginAt: r.last_login_at,
     createdAt: r.created_at,
     updatedAt: r.updated_at,
@@ -435,20 +436,33 @@ export async function getReceptionists(): Promise<User[]> {
   return rows.map(mapUser);
 }
 
+// ─── Password change ────────────────────────────────────────────────────────
+
+export async function changeUserPassword(
+  userId: string,
+  newPassword: string,
+  actorName = 'System'
+): Promise<void> {
+  await query(
+    `UPDATE users SET password_hash = crypt($1, gen_salt('bf')), must_change_password = false, updated_at = NOW() WHERE id = $2`,
+    [newPassword, userId]
+  );
+}
+
 export async function createReceptionist(data: {
   name: string;
   email: string;
   password: string;
-}, actorName = 'Admin'): Promise<User> {
+}, actorId = 'system', actorName = 'Admin'): Promise<User> {
   const rows = await query<any>(
-    `INSERT INTO users (name, email, role, password_hash, is_active)
-     VALUES ($1, $2, 'RECEPTIONIST', crypt($3, gen_salt('bf')), true)
+    `INSERT INTO users (name, email, role, password_hash, is_active, must_change_password)
+     VALUES ($1, $2, 'RECEPTIONIST', crypt($3, gen_salt('bf')), true, true)
      RETURNING *`,
     [data.name.trim(), data.email.trim().toLowerCase(), data.password]
   );
   const user = mapUser(rows[0]);
   await logAudit({
-    userId: 'system', userName: actorName, userRole: 'RECEPTIONIST',
+    userId: actorId, userName: actorName, userRole: 'RECEPTIONIST',
     action: 'USER_CREATED', entityType: 'USER',
     entityId: user.id, entityName: user.name,
   });
@@ -458,6 +472,7 @@ export async function createReceptionist(data: {
 export async function updateReceptionist(
   id: string,
   data: { name?: string; email?: string; password?: string; isActive?: boolean },
+  actorId = 'system',
   actorName = 'Admin'
 ): Promise<User | null> {
   // Build dynamic SET clause — only update provided fields
@@ -481,21 +496,21 @@ export async function updateReceptionist(
   if (!rows[0]) return null;
   const user = mapUser(rows[0]);
   await logAudit({
-    userId: 'system', userName: actorName, userRole: 'RECEPTIONIST',
+    userId: actorId, userName: actorName, userRole: 'RECEPTIONIST',
     action: 'USER_UPDATED', entityType: 'USER',
     entityId: id, entityName: user.name,
   });
   return user;
 }
 
-export async function deleteReceptionist(id: string, actorName = 'Admin'): Promise<boolean> {
+export async function deleteReceptionist(id: string, actorId = 'system', actorName = 'Admin'): Promise<boolean> {
   const rows = await query<any>(
     `DELETE FROM users WHERE id = $1 AND role = 'RECEPTIONIST' RETURNING id, name`,
     [id]
   );
   if (!rows[0]) return false;
   await logAudit({
-    userId: 'system', userName: actorName, userRole: 'RECEPTIONIST',
+    userId: actorId, userName: actorName, userRole: 'RECEPTIONIST',
     action: 'USER_DELETED', entityType: 'USER',
     entityId: id, entityName: rows[0].name,
   });
@@ -565,6 +580,7 @@ export async function deleteDoctorException(id: string): Promise<void> {
 
 export async function addDoctor(
   doc: Omit<Doctor, 'id' | 'createdAt' | 'updatedAt'>,
+  actorId = 'system',
   actorName = 'Receptionist'
 ): Promise<Doctor> {
   const rows = await query<any>(
@@ -584,13 +600,14 @@ export async function addDoctor(
     );
   }
 
-  await logAudit({ userId: 'system', userName: actorName, userRole: 'RECEPTIONIST', action: 'DOCTOR_ADDED', entityType: 'DOCTOR', entityId: newDoc.id, entityName: newDoc.fullName });
+  await logAudit({ userId: actorId, userName: actorName, userRole: 'RECEPTIONIST', action: 'DOCTOR_ADDED', entityType: 'DOCTOR', entityId: newDoc.id, entityName: newDoc.fullName });
   return newDoc;
 }
 
 export async function updateDoctor(
   id: string,
   updates: Partial<Doctor>,
+  actorId = 'system',
   actorName = 'Receptionist'
 ): Promise<Doctor | null> {
   const old = await getDoctorById(id);
@@ -615,7 +632,7 @@ export async function updateDoctor(
   );
   if (!rows[0]) return null;
   const updated = mapDoctor(rows[0]);
-  await logAudit({ userId: 'system', userName: actorName, userRole: 'RECEPTIONIST', action: updates.isActive === false ? 'DOCTOR_DEACTIVATED' : 'DOCTOR_UPDATED', entityType: 'DOCTOR', entityId: id, entityName: updated.fullName, oldValues: JSON.stringify(old), newValues: JSON.stringify(updated) });
+  await logAudit({ userId: actorId, userName: actorName, userRole: 'RECEPTIONIST', action: updates.isActive === false ? 'DOCTOR_DEACTIVATED' : 'DOCTOR_UPDATED', entityType: 'DOCTOR', entityId: id, entityName: updated.fullName, oldValues: JSON.stringify({ fullName: old.fullName, specialization: old.specialization, isActive: old.isActive }), newValues: JSON.stringify({ fullName: updated.fullName, specialization: updated.specialization, isActive: updated.isActive }) });
   return updated;
 }
 
@@ -765,18 +782,31 @@ export async function checkDuplicatePatient(
   phone: string,
   dateOfBirth: string
 ): Promise<Patient[]> {
+  // BUG-03: use exact phone match (after stripping non-digits) to prevent false positives.
+  // Require at least 7 digits so partial numbers don't accidentally match everything.
   const cleanPhone = phone.replace(/\D/g, '');
+  if (cleanPhone.length < 7) {
+    // Fall back to name+DOB only when phone is too short to match reliably
+    const rows = await query(
+      `SELECT * FROM patients
+       WHERE lower(first_name) = lower($1) AND lower(last_name) = lower($2) AND date_of_birth::text = $3`,
+      [firstName.trim(), lastName.trim(), dateOfBirth]
+    );
+    return rows.map(mapPatient);
+  }
   const rows = await query(
     `SELECT * FROM patients
-     WHERE regexp_replace(phone, '[^0-9]', '', 'g') LIKE $1
+     WHERE regexp_replace(phone, '[^0-9]', '', 'g') = $1
+        OR regexp_replace(alternate_phone, '[^0-9]', '', 'g') = $1
         OR (lower(first_name) = lower($2) AND lower(last_name) = lower($3) AND date_of_birth::text = $4)`,
-    [`%${cleanPhone}%`, firstName.trim(), lastName.trim(), dateOfBirth]
+    [cleanPhone, firstName.trim(), lastName.trim(), dateOfBirth]
   );
   return rows.map(mapPatient);
 }
 
 export async function addPatient(
   patientData: Omit<Patient, 'id' | 'patientNumber' | 'createdAt' | 'updatedAt'>,
+  actorId = 'system',
   actorName = 'Receptionist'
 ): Promise<Patient> {
   const patientNumber = await generatePatientNumber();
@@ -796,13 +826,14 @@ export async function addPatient(
      patientData.generalMedicalNotes ?? null, patientData.status ?? 'ACTIVE']
   );
   const patient = mapPatient(rows[0]);
-  await logAudit({ userId: 'system', userName: actorName, userRole: 'RECEPTIONIST', action: 'PATIENT_CREATED', entityType: 'PATIENT', entityId: patient.id, entityName: `${patient.firstName} ${patient.lastName} (${patient.patientNumber})` });
+  await logAudit({ userId: actorId, userName: actorName, userRole: 'RECEPTIONIST', action: 'PATIENT_CREATED', entityType: 'PATIENT', entityId: patient.id, entityName: `${patient.firstName} ${patient.lastName} (${patient.patientNumber})` });
   return patient;
 }
 
 export async function updatePatient(
   id: string,
   updates: Partial<Patient>,
+  actorId = 'system',
   actorName = 'Receptionist'
 ): Promise<Patient | null> {
   const rows = await query<any>(
@@ -835,7 +866,7 @@ export async function updatePatient(
   );
   if (!rows[0]) return null;
   const updated = mapPatient(rows[0]);
-  await logAudit({ userId: 'system', userName: actorName, userRole: 'RECEPTIONIST', action: 'PATIENT_UPDATED', entityType: 'PATIENT', entityId: id, entityName: `${updated.firstName} ${updated.lastName}` });
+  await logAudit({ userId: actorId, userName: actorName, userRole: 'RECEPTIONIST', action: 'PATIENT_UPDATED', entityType: 'PATIENT', entityId: id, entityName: `${updated.firstName} ${updated.lastName}` });
   return updated;
 }
 
@@ -1077,6 +1108,7 @@ export async function getAppointmentById(id: string): Promise<Appointment | null
 export async function createAppointment(
   apptData: Omit<Appointment, 'id' | 'createdAt' | 'updatedAt' | 'patient' | 'doctor'>,
   allowOverride = false,
+  actorId = 'system',
   actorName = 'Receptionist'
 ): Promise<{ appointment?: Appointment; conflict?: ConflictCheckResult }> {
   if (!allowOverride) {
@@ -1124,13 +1156,14 @@ export async function createAppointment(
     }
   }
 
-  await logAudit({ userId: 'system', userName: actorName, userRole: 'RECEPTIONIST', action: 'APPOINTMENT_CREATED', entityType: 'APPOINTMENT', entityId: rows[0].id });
+  await logAudit({ userId: actorId, userName: actorName, userRole: 'RECEPTIONIST', action: 'APPOINTMENT_CREATED', entityType: 'APPOINTMENT', entityId: rows[0].id });
   return { appointment: appt! };
 }
 
 export async function updateAppointmentStatus(
   id: string,
   status: Appointment['status'],
+  actorId = 'system',
   actorName = 'Receptionist'
 ): Promise<Appointment | null> {
   await query(
@@ -1139,7 +1172,7 @@ export async function updateAppointmentStatus(
   );
   const updated = await getAppointmentById(id);
   if (updated) {
-    await logAudit({ userId: 'system', userName: actorName, userRole: 'RECEPTIONIST', action: `APPOINTMENT_${status}`, entityType: 'APPOINTMENT', entityId: id });
+    await logAudit({ userId: actorId, userName: actorName, userRole: 'RECEPTIONIST', action: `APPOINTMENT_${status}`, entityType: 'APPOINTMENT', entityId: id });
   }
   return updated;
 }
@@ -1151,6 +1184,7 @@ export async function rescheduleAppointment(
   newEndTime: string,
   reason: string,
   allowOverride = false,
+  actorId = 'system',
   actorName = 'Receptionist'
 ): Promise<{ appointment?: Appointment; conflict?: ConflictCheckResult }> {
   const old = await getAppointmentById(id);
@@ -1179,7 +1213,7 @@ export async function rescheduleAppointment(
        actorName]
     );
     const newAppt = await getAppointmentById(newRows[0].id);
-    await logAudit({ userId: 'system', userName: actorName, userRole: 'RECEPTIONIST', action: 'APPOINTMENT_RESCHEDULED', entityType: 'APPOINTMENT', entityId: newRows[0].id });
+    await logAudit({ userId: actorId, userName: actorName, userRole: 'RECEPTIONIST', action: 'APPOINTMENT_RESCHEDULED', entityType: 'APPOINTMENT', entityId: newRows[0].id });
     return { appointment: newAppt! };
   });
 }
@@ -1200,6 +1234,7 @@ export async function getVisits(patientId?: string): Promise<Visit[]> {
 
 export async function createVisit(
   visitData: Omit<Visit, 'id' | 'createdAt' | 'updatedAt' | 'doctor' | 'treatments' | 'prescription'>,
+  actorId = 'system',
   actorName = 'Receptionist'
 ): Promise<Visit> {
   const rows = await query<any>(
@@ -1211,9 +1246,9 @@ export async function createVisit(
   );
   // If linked to appointment, complete it
   if (visitData.appointmentId) {
-    await updateAppointmentStatus(visitData.appointmentId, 'COMPLETED', actorName);
+    await updateAppointmentStatus(visitData.appointmentId, 'COMPLETED', actorId, actorName);
   }
-  await logAudit({ userId: 'system', userName: actorName, userRole: 'RECEPTIONIST', action: 'VISIT_RECORDED', entityType: 'VISIT', entityId: rows[0].id });
+  await logAudit({ userId: actorId, userName: actorName, userRole: 'RECEPTIONIST', action: 'VISIT_RECORDED', entityType: 'VISIT', entityId: rows[0].id });
   return mapVisit(rows[0]);
 }
 
@@ -1246,6 +1281,7 @@ export async function getTreatments(patientId?: string, doctorId?: string): Prom
 
 export async function createTreatment(
   data: Omit<Treatment, 'id' | 'createdAt' | 'updatedAt' | 'doctor' | 'patient'>,
+  actorId = 'system',
   actorName = 'Receptionist'
 ): Promise<Treatment> {
   const rows = await query<any>(
@@ -1267,7 +1303,7 @@ export async function createTreatment(
       actorName
     );
   }
-  await logAudit({ userId: 'system', userName: actorName, userRole: 'RECEPTIONIST', action: 'TREATMENT_CREATED', entityType: 'TREATMENT', entityId: rows[0].id, entityName: data.treatmentName });
+  await logAudit({ userId: actorId, userName: actorName, userRole: 'RECEPTIONIST', action: 'TREATMENT_CREATED', entityType: 'TREATMENT', entityId: rows[0].id, entityName: data.treatmentName });
   const full = await query(
     `SELECT t.*, d.full_name as d_name, d.specialization as d_spec, d.color as d_color,
              p.first_name as p_first, p.last_name as p_last, p.patient_number as p_num
@@ -1281,6 +1317,7 @@ export async function createTreatment(
 export async function updateTreatment(
   id: string,
   updates: Partial<Treatment>,
+  actorId = 'system',
   actorName = 'Receptionist'
 ): Promise<Treatment | null> {
   await query(
@@ -1304,7 +1341,7 @@ export async function updateTreatment(
   );
   if (!rows[0]) return null;
   const r = rows[0];
-  await logAudit({ userId: 'system', userName: actorName, userRole: 'RECEPTIONIST', action: 'TREATMENT_UPDATED', entityType: 'TREATMENT', entityId: id });
+  await logAudit({ userId: actorId, userName: actorName, userRole: 'RECEPTIONIST', action: 'TREATMENT_UPDATED', entityType: 'TREATMENT', entityId: id });
   return mapTreatment(r, { id: r.doctor_id, fullName: r.d_name, specialization: r.d_spec, color: r.d_color } as Doctor, { id: r.patient_id, firstName: r.p_first, lastName: r.p_last, patientNumber: r.p_num } as Patient);
 }
 
@@ -1375,21 +1412,57 @@ export async function getPrescriptionById(id: string): Promise<Prescription | nu
 export async function createPrescription(
   rxData: Omit<Prescription, 'id' | 'rxNumber' | 'createdAt' | 'updatedAt' | 'items' | 'doctor' | 'patient'>,
   items: Omit<PrescriptionItem, 'id' | 'prescriptionId'>[],
+  actorId = 'system',
   actorName = 'System'
 ): Promise<Prescription> {
   const rxNumber = await generateRxNumber();
+
+  // BUG-05: Server-side allergy cross-check against structured patient_allergies table
+  const allergyRows = await query(
+    `SELECT allergen, severity FROM patient_allergies WHERE patient_id = $1`,
+    [rxData.patientId]
+  );
+  const allergyWarnings: string[] = [];
+  if (allergyRows.length > 0) {
+    const allergenNames = allergyRows.map((r: any) => r.allergen.toLowerCase());
+    for (const item of items) {
+      const med = item.medicineName.toLowerCase();
+      for (const allergen of allergenNames) {
+        // Check broad cross-reactive families
+        const isPenicillinFamily = allergen.includes('penicillin') &&
+          (med.includes('amox') || med.includes('penicillin') || med.includes('augmentin') || med.includes('ampicillin'));
+        const isCephalosporinFamily = allergen.includes('cephalosporin') &&
+          (med.includes('cefadroxil') || med.includes('cephalex') || med.includes('cefdinir'));
+        const isNsaidFamily = (allergen.includes('nsaid') || allergen.includes('aspirin') || allergen.includes('ibuprofen')) &&
+          (med.includes('ibu') || med.includes('ketorolac') || med.includes('aspirin') || med.includes('naproxen') || med.includes('diclofenac'));
+        const isMacrolideFamily = allergen.includes('macrolide') &&
+          (med.includes('azithromycin') || med.includes('clarithromycin') || med.includes('erythromycin'));
+        // Direct name match
+        const isDirectMatch = med.includes(allergen) || allergen.includes(med.split(' ')[0]);
+
+        if (isPenicillinFamily || isCephalosporinFamily || isNsaidFamily || isMacrolideFamily || isDirectMatch) {
+          const severity = allergyRows.find((r: any) => r.allergen.toLowerCase() === allergen)?.severity ?? 'HIGH';
+          allergyWarnings.push(
+            `ALLERGY ALERT [${severity}]: Patient has documented allergy to "${allergyRows.find((r: any) => r.allergen.toLowerCase() === allergen)?.allergen}" — prescribed "${item.medicineName}" may be contraindicated.`
+          );
+        }
+      }
+    }
+  }
+
+  const allergyWarningText = allergyWarnings.length > 0 ? allergyWarnings.join('\n') : null;
 
   return transaction(async (q) => {
     const rxRows = await q<{ id: string }>(
       `INSERT INTO prescriptions
          (rx_number, patient_id, doctor_id, visit_id, prescription_date, diagnosis,
-          chief_complaint, instructions, follow_up_notes, follow_up_days, status)
-       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11) RETURNING id`,
+          chief_complaint, instructions, follow_up_notes, follow_up_days, status, allergy_warnings)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12) RETURNING id`,
       [rxNumber, rxData.patientId, rxData.doctorId, rxData.visitId ?? null,
        rxData.prescriptionDate ?? new Date().toISOString().slice(0, 10),
        rxData.diagnosis ?? null, rxData.chiefComplaint ?? null,
        rxData.instructions ?? null, rxData.followUpNotes ?? null,
-       rxData.followUpDays ?? null, rxData.status ?? 'ACTIVE']
+       rxData.followUpDays ?? null, rxData.status ?? 'ACTIVE', allergyWarningText]
     );
     const rxId = rxRows[0].id;
 
@@ -1400,7 +1473,7 @@ export async function createPrescription(
          VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9)`,
         [rxId, it.medicineName, it.strength ?? null, it.dosage, it.frequency, it.duration, it.route ?? 'Oral', it.instructions ?? null, idx]
       );
-      // Also add to patient medications
+      // Also record in patient_medications for medication history
       await q(
         `INSERT INTO patient_medications (patient_id, medicine_name, dosage, frequency, route, start_date, status, notes)
          VALUES ($1,$2,$3,$4,$5,$6,'CURRENT',$7)`,
@@ -1410,7 +1483,7 @@ export async function createPrescription(
       );
     }
 
-    await logAudit({ userId: 'system', userName: actorName, userRole: 'DOCTOR', action: 'PRESCRIPTION_CREATED', entityType: 'PRESCRIPTION', entityId: rxId, entityName: rxNumber });
+    await logAudit({ userId: actorId, userName: actorName, userRole: 'DOCTOR', action: 'PRESCRIPTION_CREATED', entityType: 'PRESCRIPTION', entityId: rxId, entityName: rxNumber });
     return getPrescriptionById(rxId) as Promise<Prescription>;
   });
 }
@@ -1434,6 +1507,7 @@ export async function getReminders(patientId?: string): Promise<AppointmentRemin
 
 export async function triggerManualReminder(
   reminderId: string,
+  actorId = 'system',
   actorName = 'Receptionist'
 ): Promise<AppointmentReminder | null> {
   const rows = await query<any>(
@@ -1441,7 +1515,7 @@ export async function triggerManualReminder(
     [reminderId]
   );
   if (!rows[0]) return null;
-  await logAudit({ userId: 'system', userName: actorName, userRole: 'RECEPTIONIST', action: 'REMINDER_SENT', entityType: 'REMINDER', entityId: reminderId });
+  await logAudit({ userId: actorId, userName: actorName, userRole: 'RECEPTIONIST', action: 'REMINDER_SENT', entityType: 'REMINDER', entityId: reminderId });
   return mapReminder(rows[0]);
 }
 
@@ -1454,6 +1528,7 @@ export async function getSettings(): Promise<ClinicSettings> {
 
 export async function updateSettings(
   settings: Partial<ClinicSettings>,
+  actorId = 'system',
   actorName = 'Admin'
 ): Promise<ClinicSettings> {
   const rows = await query<any>(
@@ -1491,7 +1566,7 @@ export async function updateSettings(
      settings.workingHoursEnd ?? settings.operatingHoursEnd ?? null,
      settings.currencySymbol ?? null]
   );
-  await logAudit({ userId: 'system', userName: actorName, userRole: 'ADMIN', action: 'SETTINGS_UPDATED', entityType: 'SETTINGS', entityId: 'clinic-default' });
+  await logAudit({ userId: actorId, userName: actorName, userRole: 'ADMIN', action: 'SETTINGS_UPDATED', entityType: 'SETTINGS', entityId: 'clinic-default' });
   return mapSettings(rows[0]);
 }
 

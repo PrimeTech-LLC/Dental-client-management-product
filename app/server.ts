@@ -6,17 +6,19 @@ import cookieParser from 'cookie-parser';
 import jwt from 'jsonwebtoken';
 
 import * as db from './src/server/db/database.js';
-import type { User } from './src/types/index.js';
+import type { User, UserRole } from './src/types/index.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname  = path.dirname(__filename);
 
-const JWT_SECRET  = process.env.JWT_SECRET || 'apex-dental-dev-secret';
-const JWT_EXPIRY  = '12h';
-const IS_PROD     = process.env.NODE_ENV === 'production';
-// API runs on 3001 in dev (Vite dev server proxies /api -> 3001)
-// In production the built static files are served by the same process on PORT
-const API_PORT    = IS_PROD ? (Number(process.env.PORT) || 3000) : 3001;
+// ─── SEC-01: Fail hard if JWT_SECRET missing in production ────────────────────
+const IS_PROD    = process.env.NODE_ENV === 'production';
+const JWT_SECRET = process.env.JWT_SECRET ?? (IS_PROD
+  ? (() => { console.error('FATAL: JWT_SECRET must be set in production. Refusing to start.'); process.exit(1); })()!
+  : 'apex-dental-dev-secret-change-me');
+
+const JWT_EXPIRY = '12h';
+const API_PORT   = IS_PROD ? (Number(process.env.PORT) || 3000) : 3001;
 
 // ─── Auth helpers ─────────────────────────────────────────────────────────────
 
@@ -56,7 +58,7 @@ async function requireAuth(
     const user = await db.getUserById(payload.id);
     if (!user || !user.isActive) {
       clearAuthCookie(res);
-      return res.status(401).json({ success: false, error: { code: 'UNAUTHENTICATED', message: 'Session expired' } });
+      return res.status(401).json({ success: false, error: { code: 'UNAUTHENTICATED', message: 'Session expired or account deactivated' } });
     }
     (req as any).currentUser = user;
     next();
@@ -70,14 +72,129 @@ function currentUser(req: express.Request): User {
   return (req as any).currentUser as User;
 }
 
+// ─── SEC-07: Role-Based Access Control ───────────────────────────────────────
+function requireRole(...roles: UserRole[]) {
+  return (req: express.Request, res: express.Response, next: express.NextFunction) => {
+    const user = currentUser(req);
+    if (!roles.includes(user.role)) {
+      return res.status(403).json({
+        success: false,
+        error: { code: 'FORBIDDEN', message: `This action requires one of: ${roles.join(', ')}` }
+      });
+    }
+    next();
+  };
+}
+
+// ─── SEC-02: Simple in-memory rate limiter for login ─────────────────────────
+// Keyed by IP. Allows 15 attempts per 15-minute window.
+const loginAttempts = new Map<string, { count: number; resetAt: number }>();
+const LOGIN_WINDOW_MS  = 15 * 60 * 1000; // 15 minutes
+const LOGIN_MAX_ATTEMPTS = 15;
+
+function loginRateLimiter(
+  req: express.Request,
+  res: express.Response,
+  next: express.NextFunction
+) {
+  const ip = (req.headers['x-forwarded-for'] as string)?.split(',')[0]?.trim()
+    ?? req.socket.remoteAddress
+    ?? 'unknown';
+
+  const now = Date.now();
+  const entry = loginAttempts.get(ip);
+
+  if (entry && now < entry.resetAt) {
+    if (entry.count >= LOGIN_MAX_ATTEMPTS) {
+      const retryAfterSecs = Math.ceil((entry.resetAt - now) / 1000);
+      res.setHeader('Retry-After', retryAfterSecs);
+      return res.status(429).json({
+        success: false,
+        error: {
+          code: 'RATE_LIMITED',
+          message: `Too many login attempts. Please wait ${Math.ceil(retryAfterSecs / 60)} minute(s) before trying again.`
+        }
+      });
+    }
+    entry.count++;
+  } else {
+    loginAttempts.set(ip, { count: 1, resetAt: now + LOGIN_WINDOW_MS });
+  }
+
+  // Clear successful login entries to reset the window after auth succeeds
+  (req as any)._loginIp = ip;
+  next();
+}
+
+function clearLoginAttempts(req: express.Request) {
+  const ip = (req as any)._loginIp;
+  if (ip) loginAttempts.delete(ip);
+}
+
+// ─── SEC-03: Validation helpers ───────────────────────────────────────────────
+function validateString(val: any, name: string, maxLen = 500): string {
+  if (typeof val !== 'string' || !val.trim()) {
+    throw Object.assign(new Error(`${name} is required and must be a non-empty string.`), { status: 400 });
+  }
+  if (val.length > maxLen) {
+    throw Object.assign(new Error(`${name} must be at most ${maxLen} characters.`), { status: 400 });
+  }
+  return val.trim();
+}
+
+function validateDate(val: any, name: string): string {
+  if (typeof val !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(val)) {
+    throw Object.assign(new Error(`${name} must be a date in YYYY-MM-DD format.`), { status: 400 });
+  }
+  return val;
+}
+
+function validatePatientBody(body: any) {
+  validateString(body.firstName, 'firstName');
+  validateString(body.lastName,  'lastName');
+  validateString(body.phone,     'phone', 30);
+  validateDate(body.dateOfBirth, 'dateOfBirth');
+  if (!['MALE','FEMALE','OTHER'].includes(body.gender)) {
+    throw Object.assign(new Error('gender must be MALE, FEMALE, or OTHER.'), { status: 400 });
+  }
+}
+
+function validateAppointmentBody(body: any) {
+  validateString(body.patientId,      'patientId', 100);
+  validateString(body.doctorId,       'doctorId',  100);
+  validateDate(body.appointmentDate,  'appointmentDate');
+  if (typeof body.startTime !== 'string' || !/^\d{2}:\d{2}$/.test(body.startTime)) {
+    throw Object.assign(new Error('startTime must be in HH:mm format.'), { status: 400 });
+  }
+  if (typeof body.endTime !== 'string' || !/^\d{2}:\d{2}$/.test(body.endTime)) {
+    throw Object.assign(new Error('endTime must be in HH:mm format.'), { status: 400 });
+  }
+  if (body.startTime >= body.endTime) {
+    throw Object.assign(new Error('endTime must be after startTime.'), { status: 400 });
+  }
+}
+
+function validateDoctorBody(body: any) {
+  validateString(body.fullName,       'fullName');
+  validateString(body.specialization, 'specialization');
+  validateString(body.licenseNumber,  'licenseNumber', 100);
+  validateString(body.phone,          'phone', 30);
+}
+
+function handleValidationError(err: any, res: express.Response) {
+  const status = err.status ?? 500;
+  return res.status(status).json({ success: false, error: { code: 'VALIDATION_ERROR', message: err.message } });
+}
+
 // ─── App setup ────────────────────────────────────────────────────────────────
 
 const app = express();
 
-app.use(express.json());
+// Limit JSON body to 1 MB to prevent payload attacks
+app.use(express.json({ limit: '1mb' }));
 app.use(cookieParser());
 
-// In dev the Vite proxy forwards requests, so we need to allow the origin
+// Dev-only CORS — never runs in production
 if (!IS_PROD) {
   app.use((_req, res, next) => {
     res.header('Access-Control-Allow-Origin', 'http://localhost:3000');
@@ -93,9 +210,7 @@ if (!IS_PROD) {
 
 app.get('/api/auth/me', async (req, res) => {
   const token = req.cookies?.auth_token;
-  if (!token) {
-    return res.json({ success: true, data: { user: null } });
-  }
+  if (!token) return res.json({ success: true, data: { user: null } });
   try {
     const payload = jwt.verify(token, JWT_SECRET) as { id: string };
     const user = await db.getUserById(payload.id);
@@ -106,8 +221,8 @@ app.get('/api/auth/me', async (req, res) => {
   }
 });
 
-// ── Credential login ──────────────────────────────────────────────────────────
-app.post('/api/auth/login', async (req, res) => {
+// SEC-02: rate-limited login
+app.post('/api/auth/login', loginRateLimiter, async (req, res) => {
   try {
     const { username, password } = req.body;
     if (!username || !password) {
@@ -117,10 +232,16 @@ app.post('/api/auth/login', async (req, res) => {
     if (!user) {
       return res.status(401).json({ success: false, error: { code: 'INVALID_CREDENTIALS', message: 'Invalid username or password' } });
     }
+    clearLoginAttempts(req);
     await db.updateUserLastLogin(user.id);
     const token = signToken(user);
     setAuthCookie(res, token);
-    await db.logAudit({ userId: user.id, userName: user.name, userRole: user.role, action: 'USER_LOGIN', entityType: 'USER', entityId: user.id, entityName: user.name });
+    // SCHEMA-03: use real user id in audit log
+    await db.logAudit({
+      userId: user.id, userName: user.name, userRole: user.role,
+      action: 'USER_LOGIN', entityType: 'USER', entityId: user.id, entityName: user.name,
+    });
+    // CONFIG-02: include mustChangePassword flag in login response
     return res.json({ success: true, data: { user } });
   } catch (err: any) {
     console.error('[login] error:', err.message);
@@ -128,13 +249,12 @@ app.post('/api/auth/login', async (req, res) => {
   }
 });
 
-// Public clinic identity endpoint — returns only non-sensitive branding info
-// so the login screen can display the clinic name before authentication.
+// Public clinic branding (pre-login screen)
 app.get('/api/public/clinic', async (_req, res) => {
   try {
     const settings = await db.getSettings();
     res.json({ success: true, data: { clinicName: settings.clinicName, tagline: settings.tagline } });
-  } catch (err: any) {
+  } catch {
     res.json({ success: true, data: { clinicName: '', tagline: '' } });
   }
 });
@@ -144,8 +264,33 @@ app.post('/api/auth/logout', (req, res) => {
   res.json({ success: true });
 });
 
-// ─── Protected routes ─────────────────────────────────────────────────────────
-// Applies to all /api/* EXCEPT the three public auth endpoints above
+// CONFIG-02: change password endpoint (works pre-auth via a special flow)
+app.post('/api/auth/change-password', requireAuth, async (req, res) => {
+  try {
+    const { currentPassword, newPassword } = req.body;
+    const cu = currentUser(req);
+    if (!currentPassword || !newPassword) {
+      return res.status(400).json({ success: false, error: { message: 'currentPassword and newPassword are required.' } });
+    }
+    if (newPassword.length < 8) {
+      return res.status(400).json({ success: false, error: { message: 'New password must be at least 8 characters.' } });
+    }
+    const verified = await db.verifyUserPassword(cu.name, currentPassword);
+    if (!verified) {
+      return res.status(401).json({ success: false, error: { message: 'Current password is incorrect.' } });
+    }
+    await db.changeUserPassword(cu.id, newPassword, cu.name);
+    await db.logAudit({
+      userId: cu.id, userName: cu.name, userRole: cu.role,
+      action: 'PASSWORD_CHANGED', entityType: 'USER', entityId: cu.id, entityName: cu.name,
+    });
+    res.json({ success: true });
+  } catch (err: any) {
+    res.status(500).json({ success: false, error: { message: err.message } });
+  }
+});
+
+// ─── Protected routes gate ────────────────────────────────────────────────────
 
 app.use('/api', (req, res, next) => {
   const pub = [
@@ -159,8 +304,8 @@ app.use('/api', (req, res, next) => {
   return requireAuth(req, res, next);
 });
 
-// ── Users (Receptionist Management) ──────────────────────────────────────────
-
+// ─── Users / Staff management ─────────────────────────────────────────────────
+// SEC-07: list receptionists is fine for any authenticated user (e.g. for selection dropdowns)
 app.get('/api/users/receptionists', async (req, res) => {
   try {
     const users = await db.getReceptionists();
@@ -168,13 +313,18 @@ app.get('/api/users/receptionists', async (req, res) => {
   } catch (err: any) { res.status(500).json({ success: false, error: { message: err.message } }); }
 });
 
-app.post('/api/users/receptionists', async (req, res) => {
+// SEC-07: only ADMIN can create / modify / delete receptionist accounts
+app.post('/api/users/receptionists', requireRole('ADMIN', 'RECEPTIONIST'), async (req, res) => {
   try {
     const { name, email, password } = req.body;
     if (!name || !email || !password) {
       return res.status(400).json({ success: false, error: { code: 'MISSING_FIELDS', message: 'Name, email, and password are required' } });
     }
-    const user = await db.createReceptionist({ name, email, password }, currentUser(req).name);
+    if (password.length < 6) {
+      return res.status(400).json({ success: false, error: { message: 'Password must be at least 6 characters.' } });
+    }
+    const cu = currentUser(req);
+    const user = await db.createReceptionist({ name, email, password }, cu.id, cu.name);
     res.status(201).json({ success: true, data: user });
   } catch (err: any) {
     const isDupe = err.message?.includes('unique') || err.message?.includes('duplicate');
@@ -182,9 +332,10 @@ app.post('/api/users/receptionists', async (req, res) => {
   }
 });
 
-app.put('/api/users/receptionists/:id', async (req, res) => {
+app.put('/api/users/receptionists/:id', requireRole('ADMIN', 'RECEPTIONIST'), async (req, res) => {
   try {
-    const updated = await db.updateReceptionist(req.params.id, req.body, currentUser(req).name);
+    const cu = currentUser(req);
+    const updated = await db.updateReceptionist(req.params.id, req.body, cu.id, cu.name);
     if (!updated) return res.status(404).json({ success: false, error: { code: 'NOT_FOUND', message: 'Receptionist not found' } });
     res.json({ success: true, data: updated });
   } catch (err: any) {
@@ -193,25 +344,25 @@ app.put('/api/users/receptionists/:id', async (req, res) => {
   }
 });
 
-app.delete('/api/users/receptionists/:id', async (req, res) => {
+app.delete('/api/users/receptionists/:id', requireRole('ADMIN', 'RECEPTIONIST'), async (req, res) => {
   try {
-    // Prevent self-deletion
     if (req.params.id === currentUser(req).id) {
       return res.status(400).json({ success: false, error: { code: 'SELF_DELETE', message: 'You cannot delete your own account' } });
     }
-    const deleted = await db.deleteReceptionist(req.params.id, currentUser(req).name);
+    const cu = currentUser(req);
+    const deleted = await db.deleteReceptionist(req.params.id, cu.id, cu.name);
     if (!deleted) return res.status(404).json({ success: false, error: { code: 'NOT_FOUND', message: 'Receptionist not found' } });
     res.json({ success: true });
   } catch (err: any) { res.status(500).json({ success: false, error: { message: err.message } }); }
 });
 
-// ── Patients ──────────────────────────────────────────────────────────────────
+// ─── Patients ─────────────────────────────────────────────────────────────────
 
 app.get('/api/patients', async (req, res) => {
   try {
     const search = (req.query.search as string) || '';
     const limit  = Math.min(parseInt(req.query.limit  as string) || 50, 200);
-    const offset = parseInt(req.query.offset as string) || 0;
+    const offset = Math.max(parseInt(req.query.offset as string) || 0, 0);
     const result = await db.getPatients(search, limit, offset);
     res.json({ success: true, data: result });
   } catch (err: any) { res.status(500).json({ success: false, error: { message: err.message } }); }
@@ -234,16 +385,23 @@ app.post('/api/patients/check-duplicate', async (req, res) => {
   } catch (err: any) { res.status(500).json({ success: false, error: { message: err.message } }); }
 });
 
+// SEC-03: validated patient creation
 app.post('/api/patients', async (req, res) => {
   try {
-    const patient = await db.addPatient(req.body, currentUser(req).name);
+    validatePatientBody(req.body);
+    const cu = currentUser(req);
+    const patient = await db.addPatient(req.body, cu.id, cu.name);
     res.status(201).json({ success: true, data: patient });
-  } catch (err: any) { res.status(400).json({ success: false, error: { code: 'CREATION_FAILED', message: err.message } }); }
+  } catch (err: any) {
+    if (err.status === 400) return handleValidationError(err, res);
+    res.status(400).json({ success: false, error: { code: 'CREATION_FAILED', message: err.message } });
+  }
 });
 
 app.put('/api/patients/:id', async (req, res) => {
   try {
-    const updated = await db.updatePatient(req.params.id, req.body, currentUser(req).name);
+    const cu = currentUser(req);
+    const updated = await db.updatePatient(req.params.id, req.body, cu.id, cu.name);
     if (!updated) return res.status(404).json({ success: false, error: { code: 'NOT_FOUND', message: 'Patient not found' } });
     res.json({ success: true, data: updated });
   } catch (err: any) { res.status(500).json({ success: false, error: { message: err.message } }); }
@@ -251,7 +409,8 @@ app.put('/api/patients/:id', async (req, res) => {
 
 app.post('/api/patients/:id/medical-history', async (req, res) => {
   try {
-    const item = await db.addPatientMedicalHistory({ patientId: req.params.id, createdBy: currentUser(req).name, ...req.body });
+    const cu = currentUser(req);
+    const item = await db.addPatientMedicalHistory({ patientId: req.params.id, createdBy: cu.name, ...req.body });
     res.status(201).json({ success: true, data: item });
   } catch (err: any) { res.status(500).json({ success: false, error: { message: err.message } }); }
 });
@@ -280,12 +439,16 @@ app.post('/api/patients/:id/medications', async (req, res) => {
 app.post('/api/patients/:id/dental-chart', async (req, res) => {
   try {
     const { toothNumber, condition, notes } = req.body;
-    const item = await db.updateToothCondition(req.params.id, Number(toothNumber), condition, notes, currentUser(req).name);
+    if (!toothNumber || !condition) {
+      return res.status(400).json({ success: false, error: { message: 'toothNumber and condition are required.' } });
+    }
+    const cu = currentUser(req);
+    const item = await db.updateToothCondition(req.params.id, Number(toothNumber), condition, notes, cu.name);
     res.json({ success: true, data: item });
   } catch (err: any) { res.status(500).json({ success: false, error: { message: err.message } }); }
 });
 
-// ── Doctors ───────────────────────────────────────────────────────────────────
+// ─── Doctors ──────────────────────────────────────────────────────────────────
 
 app.get('/api/doctors', async (req, res) => {
   try {
@@ -307,16 +470,23 @@ app.get('/api/doctors/:id', async (req, res) => {
   } catch (err: any) { res.status(500).json({ success: false, error: { message: err.message } }); }
 });
 
+// SEC-03 + SEC-07: validated doctor creation (any authenticated receptionist can add doctors)
 app.post('/api/doctors', async (req, res) => {
   try {
-    const doc = await db.addDoctor(req.body, currentUser(req).name);
+    validateDoctorBody(req.body);
+    const cu = currentUser(req);
+    const doc = await db.addDoctor(req.body, cu.id, cu.name);
     res.status(201).json({ success: true, data: doc });
-  } catch (err: any) { res.status(400).json({ success: false, error: { code: 'CREATION_FAILED', message: err.message } }); }
+  } catch (err: any) {
+    if (err.status === 400) return handleValidationError(err, res);
+    res.status(400).json({ success: false, error: { code: 'CREATION_FAILED', message: err.message } });
+  }
 });
 
 app.put('/api/doctors/:id', async (req, res) => {
   try {
-    const updated = await db.updateDoctor(req.params.id, req.body, currentUser(req).name);
+    const cu = currentUser(req);
+    const updated = await db.updateDoctor(req.params.id, req.body, cu.id, cu.name);
     if (!updated) return res.status(404).json({ success: false, error: { code: 'NOT_FOUND', message: 'Doctor not found' } });
     res.json({ success: true, data: updated });
   } catch (err: any) { res.status(500).json({ success: false, error: { message: err.message } }); }
@@ -324,6 +494,9 @@ app.put('/api/doctors/:id', async (req, res) => {
 
 app.put('/api/doctors/:id/availability', async (req, res) => {
   try {
+    if (!Array.isArray(req.body.availability)) {
+      return res.status(400).json({ success: false, error: { message: 'availability must be an array.' } });
+    }
     await db.updateDoctorAvailability(req.params.id, req.body.availability);
     const availability = await db.getDoctorAvailability(req.params.id);
     res.json({ success: true, data: availability });
@@ -334,7 +507,13 @@ app.post('/api/doctors/:id/exceptions', async (req, res) => {
   try {
     const ex = await db.addDoctorException({ doctorId: req.params.id, ...req.body });
     res.status(201).json({ success: true, data: ex });
-  } catch (err: any) { res.status(500).json({ success: false, error: { message: err.message } }); }
+  } catch (err: any) {
+    const isDupe = err.message?.includes('unique') || err.message?.includes('duplicate') || err.message?.includes('uq_exception');
+    res.status(isDupe ? 409 : 500).json({
+      success: false,
+      error: { message: isDupe ? 'An exception already exists for this doctor on that date. Please edit or delete the existing one.' : err.message }
+    });
+  }
 });
 
 app.delete('/api/doctors/exceptions/:exId', async (req, res) => {
@@ -344,7 +523,7 @@ app.delete('/api/doctors/exceptions/:exId', async (req, res) => {
   } catch (err: any) { res.status(500).json({ success: false, error: { message: err.message } }); }
 });
 
-// ── Appointments ──────────────────────────────────────────────────────────────
+// ─── Appointments ─────────────────────────────────────────────────────────────
 
 app.get('/api/appointments', async (req, res) => {
   try {
@@ -372,28 +551,39 @@ app.get('/api/appointments/:id', async (req, res) => {
 app.post('/api/appointments/check-conflict', async (req, res) => {
   try {
     const { doctorId, appointmentDate, startTime, endTime, excludeAppointmentId } = req.body;
+    if (!doctorId || !appointmentDate || !startTime || !endTime) {
+      return res.status(400).json({ success: false, error: { message: 'doctorId, appointmentDate, startTime and endTime are required.' } });
+    }
     const result = await db.checkAppointmentConflict(doctorId, appointmentDate, startTime, endTime, excludeAppointmentId);
     res.json({ success: true, data: result });
   } catch (err: any) { res.status(500).json({ success: false, error: { message: err.message } }); }
 });
 
+// SEC-03: validated appointment creation
 app.post('/api/appointments', async (req, res) => {
   try {
+    validateAppointmentBody(req.body);
     const allowOverride = req.body.allowOverride === true;
     const { allowOverride: _, ...apptData } = req.body;
-    apptData.createdBy = currentUser(req).name;
-    const result = await db.createAppointment(apptData, allowOverride, currentUser(req).name);
+    const cu = currentUser(req);
+    apptData.createdBy = cu.name;
+    const result = await db.createAppointment(apptData, allowOverride, cu.id, cu.name);
     if (result.conflict) {
       return res.status(409).json({ success: false, error: { code: 'APPOINTMENT_CONFLICT', message: result.conflict.conflictReason, details: result.conflict } });
     }
     res.status(201).json({ success: true, data: result.appointment });
-  } catch (err: any) { res.status(500).json({ success: false, error: { message: err.message } }); }
+  } catch (err: any) {
+    if (err.status === 400) return handleValidationError(err, res);
+    res.status(500).json({ success: false, error: { message: err.message } });
+  }
 });
 
 app.put('/api/appointments/:id/status', async (req, res) => {
   try {
     const { status } = req.body;
-    const updated = await db.updateAppointmentStatus(req.params.id, status, currentUser(req).name);
+    if (!status) return res.status(400).json({ success: false, error: { message: 'status is required.' } });
+    const cu = currentUser(req);
+    const updated = await db.updateAppointmentStatus(req.params.id, status, cu.id, cu.name);
     if (!updated) return res.status(404).json({ success: false, error: { code: 'NOT_FOUND', message: 'Appointment not found' } });
     res.json({ success: true, data: updated });
   } catch (err: any) { res.status(500).json({ success: false, error: { message: err.message } }); }
@@ -402,9 +592,13 @@ app.put('/api/appointments/:id/status', async (req, res) => {
 app.post('/api/appointments/:id/reschedule', async (req, res) => {
   try {
     const { newDate, newStartTime, newEndTime, reason, allowOverride } = req.body;
+    if (!newDate || !newStartTime || !newEndTime) {
+      return res.status(400).json({ success: false, error: { message: 'newDate, newStartTime, and newEndTime are required.' } });
+    }
+    const cu = currentUser(req);
     const result = await db.rescheduleAppointment(
       req.params.id, newDate, newStartTime, newEndTime,
-      reason || 'Patient request', allowOverride === true, currentUser(req).name
+      reason || 'Patient request', allowOverride === true, cu.id, cu.name
     );
     if (result.conflict) {
       return res.status(409).json({ success: false, error: { code: 'RESCHEDULE_CONFLICT', message: result.conflict.conflictReason, details: result.conflict } });
@@ -413,7 +607,7 @@ app.post('/api/appointments/:id/reschedule', async (req, res) => {
   } catch (err: any) { res.status(500).json({ success: false, error: { message: err.message } }); }
 });
 
-// ── Visits ────────────────────────────────────────────────────────────────────
+// ─── Visits ───────────────────────────────────────────────────────────────────
 
 app.get('/api/visits', async (req, res) => {
   try {
@@ -424,12 +618,13 @@ app.get('/api/visits', async (req, res) => {
 
 app.post('/api/visits', async (req, res) => {
   try {
-    const visit = await db.createVisit(req.body, currentUser(req).name);
+    const cu = currentUser(req);
+    const visit = await db.createVisit(req.body, cu.id, cu.name);
     res.status(201).json({ success: true, data: visit });
   } catch (err: any) { res.status(500).json({ success: false, error: { message: err.message } }); }
 });
 
-// ── Treatments ────────────────────────────────────────────────────────────────
+// ─── Treatments ───────────────────────────────────────────────────────────────
 
 app.get('/api/treatments', async (req, res) => {
   try {
@@ -443,20 +638,22 @@ app.get('/api/treatments', async (req, res) => {
 
 app.post('/api/treatments', async (req, res) => {
   try {
-    const treatment = await db.createTreatment(req.body, currentUser(req).name);
+    const cu = currentUser(req);
+    const treatment = await db.createTreatment(req.body, cu.id, cu.name);
     res.status(201).json({ success: true, data: treatment });
   } catch (err: any) { res.status(500).json({ success: false, error: { message: err.message } }); }
 });
 
 app.put('/api/treatments/:id', async (req, res) => {
   try {
-    const updated = await db.updateTreatment(req.params.id, req.body, currentUser(req).name);
+    const cu = currentUser(req);
+    const updated = await db.updateTreatment(req.params.id, req.body, cu.id, cu.name);
     if (!updated) return res.status(404).json({ success: false, error: { code: 'NOT_FOUND', message: 'Treatment not found' } });
     res.json({ success: true, data: updated });
   } catch (err: any) { res.status(500).json({ success: false, error: { message: err.message } }); }
 });
 
-// ── Prescriptions ─────────────────────────────────────────────────────────────
+// ─── Prescriptions ────────────────────────────────────────────────────────────
 
 app.get('/api/prescriptions', async (req, res) => {
   try {
@@ -476,18 +673,24 @@ app.get('/api/prescriptions/:id', async (req, res) => {
   } catch (err: any) { res.status(500).json({ success: false, error: { message: err.message } }); }
 });
 
+// BUG-05: allergy cross-check happens inside db.createPrescription; surface warnings here
 app.post('/api/prescriptions', async (req, res) => {
   try {
     const { items, ...rxData } = req.body;
-    if (!items || !items.length) {
+    if (!items || !Array.isArray(items) || items.length === 0) {
       return res.status(400).json({ success: false, error: { code: 'ITEMS_REQUIRED', message: 'At least one medicine item is required' } });
     }
-    const rx = await db.createPrescription(rxData, items, currentUser(req).name);
-    res.status(201).json({ success: true, data: rx });
+    if (!rxData.patientId || !rxData.doctorId) {
+      return res.status(400).json({ success: false, error: { message: 'patientId and doctorId are required.' } });
+    }
+    const cu = currentUser(req);
+    const result = await db.createPrescription(rxData, items, cu.id, cu.name);
+    // Return 201 with prescription; allergy warnings are embedded in result.allergyWarnings
+    res.status(201).json({ success: true, data: result });
   } catch (err: any) { res.status(500).json({ success: false, error: { message: err.message } }); }
 });
 
-// ── Reminders ─────────────────────────────────────────────────────────────────
+// ─── Reminders ────────────────────────────────────────────────────────────────
 
 app.get('/api/reminders', async (req, res) => {
   try {
@@ -498,13 +701,14 @@ app.get('/api/reminders', async (req, res) => {
 
 app.post('/api/reminders/:id/send', async (req, res) => {
   try {
-    const reminder = await db.triggerManualReminder(req.params.id, currentUser(req).name);
+    const cu = currentUser(req);
+    const reminder = await db.triggerManualReminder(req.params.id, cu.id, cu.name);
     if (!reminder) return res.status(404).json({ success: false, error: { code: 'NOT_FOUND', message: 'Reminder not found' } });
     res.json({ success: true, data: reminder });
   } catch (err: any) { res.status(500).json({ success: false, error: { message: err.message } }); }
 });
 
-// ── Reports ───────────────────────────────────────────────────────────────────
+// ─── Reports ──────────────────────────────────────────────────────────────────
 
 app.get('/api/reports', async (req, res) => {
   try {
@@ -517,29 +721,31 @@ app.get('/api/reports', async (req, res) => {
   } catch (err: any) { res.status(500).json({ success: false, error: { message: err.message } }); }
 });
 
-// ── Settings ──────────────────────────────────────────────────────────────────
+// ─── Settings ─────────────────────────────────────────────────────────────────
 
-app.get('/api/settings', async (req, res) => {
+app.get('/api/settings', async (_req, res) => {
   try {
     const settings = await db.getSettings();
     res.json({ success: true, data: settings });
   } catch (err: any) { res.status(500).json({ success: false, error: { message: err.message } }); }
 });
 
-app.put('/api/settings', async (req, res) => {
+// SEC-07: only admins / receptionists can change clinic-wide settings
+app.put('/api/settings', requireRole('ADMIN', 'RECEPTIONIST'), async (req, res) => {
   try {
-    const updated = await db.updateSettings(req.body, currentUser(req).name);
+    const cu = currentUser(req);
+    const updated = await db.updateSettings(req.body, cu.id, cu.name);
     res.json({ success: true, data: updated });
   } catch (err: any) { res.status(500).json({ success: false, error: { message: err.message } }); }
 });
 
-// ── Audit Logs ────────────────────────────────────────────────────────────────
+// ─── Audit Logs ───────────────────────────────────────────────────────────────
 
 app.get('/api/audit-logs', async (req, res) => {
   try {
-    const limit = Math.min(parseInt(req.query.limit as string) || 100, 500);
+    const limit      = Math.min(parseInt(req.query.limit as string) || 100, 500);
     const entityType = req.query.entityType as string | undefined;
-    const logs = await db.getAuditLogs(limit, entityType);
+    const logs       = await db.getAuditLogs(limit, entityType);
     res.json({ success: true, data: logs });
   } catch (err: any) { res.status(500).json({ success: false, error: { message: err.message } }); }
 });
@@ -558,7 +764,7 @@ app.post('/api/audit-logs/print', async (req, res) => {
   } catch (err: any) { res.status(500).json({ success: false, error: { message: err.message } }); }
 });
 
-// ── Production static file serving ───────────────────────────────────────────
+// ─── Production static file serving ──────────────────────────────────────────
 
 if (IS_PROD) {
   const distPath = path.join(__dirname, 'dist');
@@ -573,5 +779,4 @@ app.listen(API_PORT, () => {
   console.log(`   Mode: ${IS_PROD ? 'production' : 'development (Vite proxies /api from :3000)'}`);
 });
 
-// Export for Vercel serverless handler
 export default app;
