@@ -141,6 +141,9 @@ export const api = {
       body: JSON.stringify(updates)
     }),
 
+  deleteDoctor: (id: string) =>
+    fetchJson<void>(`/api/doctors/${id}`, { method: 'DELETE' }),
+
   updateDoctorAvailability: (id: string, availability: any[]) =>
     fetchJson<any>(`/api/doctors/${id}/availability`, {
       method: 'PUT',

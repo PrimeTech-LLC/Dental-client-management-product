@@ -9,35 +9,57 @@
   }
 }
 
-/* Print Specific Styles */
+/* ── UX-05: Print Styles ──────────────────────────────────────────────────── */
+/* These rules guarantee the modal chrome disappears and only the
+   print-clean-area (the A4 canvas) appears on paper / PDF.                   */
 @media print {
-  body {
+  /* Reset page background */
+  html, body {
     background-color: #ffffff !important;
     color: #000000 !important;
+    font-size: 11pt;
   }
-  
+
+  /* Hide all UI chrome */
   .no-print,
   nav,
   header,
   aside,
-  button,
   .print-hide {
     display: none !important;
+    visibility: hidden !important;
   }
 
-  .print-only {
-    display: block !important;
-    position: absolute;
-    left: 0;
-    top: 0;
-    width: 100%;
-    margin: 0;
-    padding: 0;
-    background: #ffffff !important;
+  /* Remove modal backdrop and container chrome */
+  .fixed.inset-0 {
+    position: static !important;
+    background: none !important;
+    backdrop-filter: none !important;
   }
 
+  /* Strip shadow/border from the print canvas so only content prints */
+  .print-clean-area {
+    box-shadow: none !important;
+    border: none !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    width: 100% !important;
+    max-width: 100% !important;
+  }
+
+  /* Remove rounded corners and background tints that look bad on paper */
+  .rounded-xl, .rounded-2xl, .rounded-lg {
+    border-radius: 0 !important;
+  }
+
+  /* Prevent page breaks inside table rows */
+  tr, td, th {
+    page-break-inside: avoid;
+  }
+
+  /* Page margins */
   @page {
-    size: auto;
+    size: A4 portrait;
     margin: 12mm 15mm 15mm 15mm;
   }
 }

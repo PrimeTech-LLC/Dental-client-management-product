@@ -636,7 +636,55 @@ export async function updateDoctor(
   return updated;
 }
 
-// ─── Patients ───────────────────────────────────────────────────────────────
+export async function deleteDoctor(
+  id: string,
+  actorId = 'system',
+  actorName = 'Receptionist'
+): Promise<{ success: boolean; error?: string }> {
+  // Check for linked records that would violate ON DELETE RESTRICT
+  const [apptRows, treatRows, rxRows, visitRows] = await Promise.all([
+    query('SELECT COUNT(*)::int AS n FROM appointments WHERE doctor_id = $1', [id]),
+    query('SELECT COUNT(*)::int AS n FROM treatments  WHERE doctor_id = $1', [id]),
+    query('SELECT COUNT(*)::int AS n FROM prescriptions WHERE doctor_id = $1', [id]),
+    query('SELECT COUNT(*)::int AS n FROM visits       WHERE doctor_id = $1', [id]),
+  ]);
+
+  const appts  = Number(apptRows[0]?.n  ?? 0);
+  const treats = Number(treatRows[0]?.n ?? 0);
+  const rxs    = Number(rxRows[0]?.n    ?? 0);
+  const visits = Number(visitRows[0]?.n ?? 0);
+
+  if (appts + treats + rxs + visits > 0) {
+    const parts: string[] = [];
+    if (appts)  parts.push(`${appts} appointment${appts  !== 1 ? 's' : ''}`);
+    if (treats) parts.push(`${treats} treatment${treats !== 1 ? 's' : ''}`);
+    if (rxs)    parts.push(`${rxs} prescription${rxs    !== 1 ? 's' : ''}`);
+    if (visits) parts.push(`${visits} visit${visits     !== 1 ? 's' : ''}`);
+    return {
+      success: false,
+      error: `Cannot delete this doctor — they have linked records: ${parts.join(', ')}. `
+        + `Deactivate the doctor instead to prevent new bookings while preserving clinical history.`,
+    };
+  }
+
+  const docRows = await query('SELECT full_name FROM doctors WHERE id = $1', [id]);
+  if (!docRows[0]) return { success: false, error: 'Doctor not found.' };
+  const fullName = docRows[0].full_name;
+
+  await query('DELETE FROM doctors WHERE id = $1', [id]);
+
+  await logAudit({
+    userId: actorId,
+    userName: actorName,
+    userRole: 'RECEPTIONIST',
+    action: 'DOCTOR_DELETED',
+    entityType: 'DOCTOR',
+    entityId: id,
+    entityName: fullName,
+  });
+
+  return { success: true };
+}
 
 export async function getPatients(
   searchQuery = '',

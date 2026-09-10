@@ -492,6 +492,17 @@ app.put('/api/doctors/:id', async (req, res) => {
   } catch (err: any) { res.status(500).json({ success: false, error: { message: err.message } }); }
 });
 
+app.delete('/api/doctors/:id', async (req, res) => {
+  try {
+    const cu = currentUser(req);
+    const result = await db.deleteDoctor(req.params.id, cu.id, cu.name);
+    if (!result.success) {
+      return res.status(409).json({ success: false, error: { code: 'DELETE_CONFLICT', message: result.error } });
+    }
+    res.json({ success: true });
+  } catch (err: any) { res.status(500).json({ success: false, error: { message: err.message } }); }
+});
+
 app.put('/api/doctors/:id/availability', async (req, res) => {
   try {
     if (!Array.isArray(req.body.availability)) {

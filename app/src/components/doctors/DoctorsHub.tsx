@@ -3,22 +3,18 @@ import {
   Stethoscope,
   Plus,
   Edit2,
-  Calendar,
-  Clock,
-  CheckCircle2,
-  XCircle,
-  AlertCircle,
   Phone,
   Mail,
-  Shield,
   Trash2,
   Save,
-  X
+  X,
+  AlertTriangle,
 } from 'lucide-react';
 import { Doctor, DoctorAvailability, DoctorScheduleException } from '../../types/index.js';
 import { api } from '../../lib/api.js';
 import { formatDate, formatTime } from '../../lib/utils.js';
 import { DAYS_OF_WEEK, DOCTOR_DEFAULT_COLOR } from '../../lib/constants.js';
+import { ConfirmDialog } from '../ui/Toast.js';
 
 export const DoctorsHub: React.FC = () => {
   const [doctors, setDoctors] = useState<Doctor[]>([]);
@@ -40,6 +36,10 @@ export const DoctorsHub: React.FC = () => {
   const [showExceptionModal, setShowExceptionModal] = useState(false);
   const [exceptionDate, setExceptionDate] = useState('');
   const [exceptionReason, setExceptionReason] = useState('');
+
+  // Delete doctor state
+  const [deleteTarget, setDeleteTarget] = useState<Doctor | null>(null);
+  const [deleteError, setDeleteError] = useState('');
 
   const loadDoctors = async () => {
     try {
@@ -129,12 +129,24 @@ export const DoctorsHub: React.FC = () => {
 
   // Toggle Doctor Active
   const handleToggleActive = async (doc: Doctor) => {
-    const willDeactivate = doc.isActive;
-    if (willDeactivate && !confirm(`Are you sure you want to deactivate ${doc.fullName}? Deactivated doctors will not be available for new appointments.`)) {
-      return;
-    }
     await api.updateDoctor(doc.id, { isActive: !doc.isActive });
     await loadDoctors();
+  };
+
+  // Delete Doctor
+  const handleDeleteDoctor = async () => {
+    if (!deleteTarget) return;
+    setDeleteError('');
+    try {
+      await api.deleteDoctor(deleteTarget.id);
+      // Deselect if we just deleted the selected doctor
+      if (selectedDoctor?.id === deleteTarget.id) setSelectedDoctor(null);
+      setDeleteTarget(null);
+      await loadDoctors();
+    } catch (err: any) {
+      // 409 conflict — doctor has linked records
+      setDeleteError(err.message || 'Failed to delete doctor.');
+    }
   };
 
   // Update Availability Slot
@@ -252,16 +264,29 @@ export const DoctorsHub: React.FC = () => {
                       </div>
                     </div>
 
+                  <div className="flex items-center gap-1">
                     <button
                       onClick={(e) => {
                         e.stopPropagation();
                         handleOpenEditDoctor(doc);
                       }}
-                      className="p-1 hover:bg-slate-100 rounded text-slate-400 hover:text-slate-700 text-xs"
+                      className="p-1 hover:bg-slate-100 rounded text-slate-400 hover:text-slate-700"
                       title="Edit Profile"
                     >
                       <Edit2 className="w-3.5 h-3.5" />
                     </button>
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setDeleteError('');
+                        setDeleteTarget(doc);
+                      }}
+                      className="p-1 hover:bg-rose-50 rounded text-slate-400 hover:text-rose-600"
+                      title="Delete Doctor"
+                    >
+                      <Trash2 className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
                   </div>
 
                   <div className="mt-3 pt-2.5 border-t border-slate-100 flex items-center justify-between text-[11px] text-slate-500">
@@ -308,13 +333,22 @@ export const DoctorsHub: React.FC = () => {
                 </div>
               </div>
 
-              <button
-                onClick={() => handleOpenEditDoctor(selectedDoctor)}
-                className="px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg text-xs font-medium border border-slate-200 flex items-center gap-1.5"
-              >
-                <Edit2 className="w-3.5 h-3.5" />
-                <span>Edit Doctor</span>
-              </button>
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => handleOpenEditDoctor(selectedDoctor)}
+                  className="px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg text-xs font-medium border border-slate-200 flex items-center gap-1.5"
+                >
+                  <Edit2 className="w-3.5 h-3.5" />
+                  <span>Edit Doctor</span>
+                </button>
+                <button
+                  onClick={() => { setDeleteError(''); setDeleteTarget(selectedDoctor); }}
+                  className="px-3 py-1.5 bg-rose-50 hover:bg-rose-100 text-rose-700 rounded-lg text-xs font-medium border border-rose-200 flex items-center gap-1.5"
+                >
+                  <Trash2 className="w-3.5 h-3.5" />
+                  <span>Delete Doctor</span>
+                </button>
+              </div>
             </div>
 
             {/* Weekly Operating Hours Configuration */}
@@ -541,6 +575,56 @@ export const DoctorsHub: React.FC = () => {
               <button type="submit" className="px-4 py-1.5 bg-teal-600 text-white rounded font-medium">Add Exception</button>
             </div>
           </form>
+        </div>
+      )}
+
+      {/* ── Delete Doctor Confirmation ─────────────────────────────────────── */}
+      {/* Standard case: no linked records → simple confirm */}
+      <ConfirmDialog
+        isOpen={deleteTarget !== null && !deleteError}
+        title={`Delete ${deleteTarget?.fullName ?? 'Doctor'}?`}
+        message={`This will permanently remove ${deleteTarget?.fullName ?? 'this doctor'} and all their availability / schedule data. This action cannot be undone.\n\nIf they have existing appointments, treatments, or prescriptions you will see an error and can deactivate them instead.`}
+        confirmLabel="Yes, Delete Doctor"
+        cancelLabel="Cancel"
+        variant="danger"
+        onConfirm={handleDeleteDoctor}
+        onCancel={() => setDeleteTarget(null)}
+      />
+
+      {/* Error case: doctor has linked records → show message + deactivate shortcut */}
+      {deleteTarget !== null && deleteError && (
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-xs z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-xl shadow-2xl border border-slate-200 w-full max-w-sm p-6 space-y-4 text-xs">
+            <div className="flex items-start gap-3">
+              <div className="w-9 h-9 rounded-full bg-amber-100 flex items-center justify-center shrink-0">
+                <AlertTriangle className="w-4 h-4 text-amber-600" />
+              </div>
+              <div>
+                <h3 className="font-bold text-sm text-slate-900">Cannot Delete Doctor</h3>
+                <p className="text-slate-600 mt-1.5 leading-relaxed">{deleteError}</p>
+              </div>
+            </div>
+            <div className="flex justify-end gap-2 pt-2 border-t border-slate-100">
+              <button
+                onClick={() => { setDeleteTarget(null); setDeleteError(''); }}
+                className="px-3 py-1.5 bg-slate-100 hover:bg-slate-200 rounded-lg text-slate-700 font-medium"
+              >
+                Close
+              </button>
+              <button
+                onClick={async () => {
+                  if (!deleteTarget) return;
+                  await api.updateDoctor(deleteTarget.id, { isActive: false });
+                  setDeleteTarget(null);
+                  setDeleteError('');
+                  await loadDoctors();
+                }}
+                className="px-4 py-1.5 bg-amber-500 hover:bg-amber-600 text-white rounded-lg font-semibold shadow-xs"
+              >
+                Deactivate Instead
+              </button>
+            </div>
+          </div>
         </div>
       )}
     </div>

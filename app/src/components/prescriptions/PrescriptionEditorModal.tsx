@@ -423,6 +423,9 @@ export const PrescriptionEditorModal: React.FC<PrescriptionEditorModalProps> = (
             </button>
 
             <div className="flex items-center gap-2">
+              {submitError && (
+                <p className="text-[11px] text-rose-700 max-w-xs text-right">{submitError}</p>
+              )}
               <button
                 type="button"
                 disabled={submitting}
