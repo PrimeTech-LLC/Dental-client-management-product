@@ -36,10 +36,14 @@ export const PrescriptionEditorModal: React.FC<PrescriptionEditorModalProps> = (
   ]);
 
   const [submitting, setSubmitting] = useState(false);
+  const [submitError, setSubmitError] = useState('');
 
   useEffect(() => {
     if (!isOpen) return;
-    // Reset form to blank state each time modal opens
+    // BUG-06: always reset selections from props every time modal opens,
+    // not just on first mount — fixes stale patient/doctor on re-open.
+    setSelectedPatientId(initialPatientId || '');
+    setSelectedDoctorId(initialDoctorId || '');
     setDiagnosis('');
     setChiefComplaint('');
     setGeneralAdvice('');
@@ -54,14 +58,24 @@ export const PrescriptionEditorModal: React.FC<PrescriptionEditorModalProps> = (
         setDoctors(docs);
         setPatients(pts.patients);
 
-        if (!selectedDoctorId && docs.length > 0) setSelectedDoctorId(docs[0].id);
-        if (!selectedPatientId && pts.patients.length > 0) setSelectedPatientId(pts.patients[0].id);
+        // Set doctor to prop value, or first active doctor
+        if (initialDoctorId) {
+          setSelectedDoctorId(initialDoctorId);
+        } else if (docs.length > 0) {
+          setSelectedDoctorId(docs[0].id);
+        }
+        // Set patient to prop value, or first patient
+        if (initialPatientId) {
+          setSelectedPatientId(initialPatientId);
+        } else if (pts.patients.length > 0) {
+          setSelectedPatientId(pts.patients[0].id);
+        }
       } catch (err) {
         console.error(err);
       }
     }
     load();
-  }, [isOpen]);
+  }, [isOpen, initialPatientId, initialDoctorId]);
 
   const selectedPatient = patients.find(p => p.id === selectedPatientId);
   const selectedDoctor = doctors.find(d => d.id === selectedDoctorId);
@@ -118,12 +132,13 @@ export const PrescriptionEditorModal: React.FC<PrescriptionEditorModalProps> = (
 
   const handleSubmit = async (e: React.FormEvent, shouldPrint = false) => {
     e.preventDefault();
+    setSubmitError('');
     if (!selectedPatientId || !selectedDoctorId) {
-      alert('Please select patient and doctor.');
+      setSubmitError('Please select a patient and a doctor.');
       return;
     }
     if (items.length === 0 || !items[0].medicineName) {
-      alert('At least one medicine is required.');
+      setSubmitError('At least one medicine is required.');
       return;
     }
 
@@ -154,7 +169,7 @@ export const PrescriptionEditorModal: React.FC<PrescriptionEditorModalProps> = (
       }
       onClose();
     } catch (err: any) {
-      alert(`Failed to create prescription: ${err.message}`);
+      setSubmitError(`Failed to save prescription: ${err.message}`);
     } finally {
       setSubmitting(false);
     }
@@ -408,6 +423,9 @@ export const PrescriptionEditorModal: React.FC<PrescriptionEditorModalProps> = (
             </button>
 
             <div className="flex items-center gap-2">
+              {submitError && (
+                <p className="text-[11px] text-rose-700 max-w-xs text-right">{submitError}</p>
+              )}
               <button
                 type="button"
                 disabled={submitting}

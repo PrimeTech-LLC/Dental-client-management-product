@@ -11,6 +11,7 @@ export interface User {
   email: string;
   role: UserRole;
   isActive: boolean;
+  mustChangePassword?: boolean;
   lastLoginAt?: string;
   createdAt: string;
   updatedAt: string;

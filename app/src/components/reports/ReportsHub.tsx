@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from 'react';
-import { BarChart3, Calendar, Download, Printer, Stethoscope, CheckCircle2, XCircle, DollarSign, Activity } from 'lucide-react';
+import React, { useState, useEffect, useRef } from 'react';
+import { BarChart3, Printer } from 'lucide-react';
 import { api } from '../../lib/api.js';
 import { format, subDays, startOfMonth } from 'date-fns';
 
@@ -10,10 +10,14 @@ export const ReportsHub: React.FC = () => {
   const [reports, setReports] = useState<any>(null);
   const [loading, setLoading] = useState(true);
 
-  const loadReports = async () => {
+  // PERF-03: debounce date changes so typing in the date inputs doesn't fire
+  // a full report fetch on every keystroke.
+  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const loadReports = async (sd: string, ed: string) => {
     try {
       setLoading(true);
-      const data = await api.getReports(startDate, endDate);
+      const data = await api.getReports(sd, ed);
       setReports(data);
     } catch (err) {
       console.error(err);
@@ -23,7 +27,13 @@ export const ReportsHub: React.FC = () => {
   };
 
   useEffect(() => {
-    loadReports();
+    if (debounceRef.current) clearTimeout(debounceRef.current);
+    debounceRef.current = setTimeout(() => {
+      loadReports(startDate, endDate);
+    }, 600); // 600 ms debounce — doesn't fire while user is still typing
+    return () => {
+      if (debounceRef.current) clearTimeout(debounceRef.current);
+    };
   }, [startDate, endDate]);
 
   const handleSetPreset = (preset: 'today' | 'week' | 'month') => {
@@ -33,7 +43,7 @@ export const ReportsHub: React.FC = () => {
     } else if (preset === 'week') {
       setStartDate(format(subDays(new Date(), 7), 'yyyy-MM-dd'));
       setEndDate(todayStr);
-    } else if (preset === 'month') {
+    } else {
       setStartDate(format(startOfMonth(new Date()), 'yyyy-MM-dd'));
       setEndDate(todayStr);
     }

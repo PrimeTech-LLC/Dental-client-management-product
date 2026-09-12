@@ -1,10 +1,18 @@
 /**
  * Neon Postgres connection — @neondatabase/serverless.
  *
- * Node 22 has a fully stable built-in fetch, so no node-fetch injection
- * is required. The neon driver uses the global fetch automatically.
+ * SEC-05 FIX: The previous `transaction()` implementation sent BEGIN / COMMIT
+ * as separate HTTP requests.  Because the Neon HTTP driver is stateless, each
+ * call goes to a different ephemeral connection so BEGIN had no effect and the
+ * "transaction" was not atomic.
+ *
+ * The correct approach for the Neon HTTP driver is to use the built-in
+ * `sql.transaction()` helper which batches all statements in a single
+ * HTTP round-trip and guarantees true ACID atomicity.
+ *
+ * For single (non-transactional) queries we continue to use `sql()` directly.
  */
-import { neon } from '@neondatabase/serverless';
+import { neon, NeonQueryFunction } from '@neondatabase/serverless';
 
 if (!process.env.DATABASE_URL) {
   throw new Error('DATABASE_URL environment variable is not set');
@@ -12,8 +20,10 @@ if (!process.env.DATABASE_URL) {
 
 const sql = neon(process.env.DATABASE_URL);
 
+// ─── Single-statement query helper ────────────────────────────────────────────
+
 /**
- * Run a parameterised query. Returns rows as plain objects.
+ * Run a parameterised query and return rows as plain objects.
  */
 export async function query<T = any>(
   text: string,
@@ -28,21 +38,65 @@ export async function query<T = any>(
   }
 }
 
+// ─── Transaction helper ────────────────────────────────────────────────────────
+
 /**
- * Execute a callback inside a BEGIN / COMMIT block.
- * Each statement is a separate HTTPS round-trip (neon HTTP is stateless),
- * so this provides best-effort atomicity for sequential operations.
+ * Execute multiple statements inside a real ACID transaction.
+ *
+ * The callback receives a `q` function identical in signature to `query`.
+ * All calls are collected and sent as a single batched HTTP request to Neon,
+ * which guarantees atomicity (all succeed or all roll back).
+ *
+ * IMPORTANT: because Neon's HTTP transaction API requires all SQL statements
+ * to be provided up-front, we collect them eagerly, then fire them in one
+ * batch.  The callback must therefore be a series of awaited `q()` calls
+ * whose return values are used only *after* all statements are registered —
+ * exactly the usage pattern in this codebase.
  */
 export async function transaction<T>(
   fn: (q: typeof query) => Promise<T>
 ): Promise<T> {
-  await query('BEGIN');
+  // Collect every statement the callback issues.
+  const statements: { text: string; params: any[] }[] = [];
+  const results: any[][] = [];
+
+  // Proxy `q` that records statements instead of executing them immediately.
+  const recordingQ = async (text: string, params: any[] = []): Promise<any[]> => {
+    const idx = statements.length;
+    statements.push({ text, params });
+    // Return a placeholder — the real result will be filled in after execution.
+    const placeholder: any[] = [];
+    results.push(placeholder);
+    return placeholder;
+  };
+
+  // Run the callback in recording mode to discover all statements.
+  let callbackResult: T;
   try {
-    const result = await fn(query);
-    await query('COMMIT');
-    return result;
+    callbackResult = await fn(recordingQ as unknown as typeof query);
   } catch (err) {
-    await query('ROLLBACK').catch(() => {});
     throw err;
   }
+
+  if (statements.length === 0) {
+    return callbackResult;
+  }
+
+  // Execute all statements in a single atomic HTTP transaction via Neon.
+  try {
+    const batchResults = await sql.transaction(
+      statements.map(s => sql(s.text, s.params))
+    );
+
+    // Back-fill real row arrays into the placeholder arrays so any caller
+    // that holds a reference to the placeholder gets the real data.
+    batchResults.forEach((rows: any[], i: number) => {
+      results[i].push(...rows);
+    });
+  } catch (err: any) {
+    console.error('[DB] Transaction error:', err.message);
+    throw err;
+  }
+
+  return callbackResult;
 }

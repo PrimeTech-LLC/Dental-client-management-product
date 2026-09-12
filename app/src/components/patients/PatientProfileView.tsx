@@ -27,6 +27,7 @@ import { api } from '../../lib/api.js';
 import { BLOOD_GROUPS, GENDER_OPTIONS } from '../../lib/constants.js';
 import { formatDate, formatTime, calculateAge, getStatusBadgeClasses } from '../../lib/utils.js';
 import { DentalChart } from './DentalChart.js';
+import { ConfirmDialog } from '../ui/Toast.js';
 
 interface PatientProfileViewProps {
   patientId: string;
@@ -56,6 +57,7 @@ export const PatientProfileView: React.FC<PatientProfileViewProps> = ({
   const [isEditing, setIsEditing] = useState(false);
   const [editSaving, setEditSaving] = useState(false);
   const [editSaved, setEditSaved] = useState(false);
+  const [editError, setEditError] = useState('');
 
   // Edit form fields
   const [editFirstName, setEditFirstName] = useState('');
@@ -74,6 +76,9 @@ export const PatientProfileView: React.FC<PatientProfileViewProps> = ({
   const [editGeneralNotes, setEditGeneralNotes] = useState('');
 
   // ── Other inline form states ────────────────────────────────
+  const [availableDoctors, setAvailableDoctors] = useState<any[]>([]);
+  const [allergyToDelete, setAllergyToDelete] = useState<string | null>(null);
+
   const [showAddMedicalModal, setShowAddMedicalModal] = useState(false);
   const [newConditionName, setNewConditionName] = useState('');
   const [newConditionNotes, setNewConditionNotes] = useState('');
@@ -88,18 +93,31 @@ export const PatientProfileView: React.FC<PatientProfileViewProps> = ({
   const [newToothNumber, setNewToothNumber] = useState<number | undefined>(undefined);
   const [newTreatmentCost, setNewTreatmentCost] = useState(150);
   const [newTreatmentNotes, setNewTreatmentNotes] = useState('');
+  // BUG-01: doctor selector for treatment form
+  const [newTreatmentDoctorId, setNewTreatmentDoctorId] = useState('');
 
   const [showAddVisitModal, setShowAddVisitModal] = useState(false);
   const [newVisitChiefComplaint, setNewVisitChiefComplaint] = useState('');
   const [newVisitClinicalNotes, setNewVisitClinicalNotes] = useState('');
   const [newVisitDiagnosis, setNewVisitDiagnosis] = useState('');
+  // BUG-01: doctor selector for visit form
+  const [newVisitDoctorId, setNewVisitDoctorId] = useState('');
 
   // ── Load patient ─────────────────────────────────────────────
   const loadPatientData = async () => {
     try {
       setLoading(true);
-      const data = await api.getPatientById(patientId);
+      const [data, docs] = await Promise.all([
+        api.getPatientById(patientId),
+        api.getDoctors(false),
+      ]);
       setPatient(data);
+      setAvailableDoctors(docs);
+      // Pre-select first doctor for the inline forms
+      if (docs.length > 0) {
+        setNewTreatmentDoctorId(prev => prev || docs[0].id);
+        setNewVisitDoctorId(prev => prev || docs[0].id);
+      }
     } catch (err) {
       console.error('Failed to load patient:', err);
     } finally {
@@ -132,8 +150,8 @@ export const PatientProfileView: React.FC<PatientProfileViewProps> = ({
   }, [patient]);
 
   // ── Edit handlers ─────────────────────────────────────────────
-  const handleOpenEdit = () => setIsEditing(true);
-  const handleCancelEdit = () => setIsEditing(false);
+  const handleOpenEdit = () => { setIsEditing(true); setEditError(''); };
+  const handleCancelEdit = () => { setIsEditing(false); setEditError(''); };
 
   const handleSaveEdit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -161,7 +179,7 @@ export const PatientProfileView: React.FC<PatientProfileViewProps> = ({
       setIsEditing(false);
       await loadPatientData();
     } catch (err: any) {
-      alert(`Failed to save changes: ${err.message}`);
+      setEditError(`Failed to save changes: ${err.message}`);
     } finally {
       setEditSaving(false);
     }
@@ -204,19 +222,19 @@ export const PatientProfileView: React.FC<PatientProfileViewProps> = ({
   };
 
   const handleDeleteAllergy = async (allergyId: string) => {
-    if (!confirm('Remove this allergy record?')) return;
+    // UX-02: replaced window.confirm with a ConfirmDialog in the JSX below
     await api.deleteAllergy(allergyId);
     await loadPatientData();
   };
-
   // ── Treatment ────────────────────────────────────────────────
   const handleAddTreatment = async (e: React.FormEvent) => {
     e.preventDefault();
-    const doctors = await api.getDoctors();
-    const primaryDoctorId = doctors[0]?.id || '';
+    // BUG-01: use the selected doctor from the form, not always the first one
+    const doctorId = newTreatmentDoctorId || availableDoctors[0]?.id || '';
+    if (!doctorId) return;
     await api.createTreatment({
       patientId,
-      doctorId: primaryDoctorId,
+      doctorId,
       treatmentName: newTreatmentName,
       toothNumber: newToothNumber ? Number(newToothNumber) : undefined,
       cost: Number(newTreatmentCost),
@@ -224,17 +242,22 @@ export const PatientProfileView: React.FC<PatientProfileViewProps> = ({
       status: 'PLANNED',
     });
     setShowAddTreatmentModal(false);
+    setNewTreatmentName('Dental Composite Restoration');
+    setNewToothNumber(undefined);
+    setNewTreatmentCost(150);
+    setNewTreatmentNotes('');
     await loadPatientData();
   };
 
   // ── Visit ────────────────────────────────────────────────────
   const handleAddVisit = async (e: React.FormEvent) => {
     e.preventDefault();
-    const doctors = await api.getDoctors();
-    const primaryDoctorId = doctors[0]?.id || '';
+    // BUG-01: use the selected doctor from the form, not always the first one
+    const doctorId = newVisitDoctorId || availableDoctors[0]?.id || '';
+    if (!doctorId) return;
     await api.createVisit({
       patientId,
-      doctorId: primaryDoctorId,
+      doctorId,
       visitDate: new Date().toISOString().split('T')[0],
       chiefComplaint: newVisitChiefComplaint,
       clinicalNotes: newVisitClinicalNotes,
@@ -529,11 +552,12 @@ export const PatientProfileView: React.FC<PatientProfileViewProps> = ({
                 {patient.medicalHistory.map((m: any) => (
                   <div key={m.id} className="p-3 bg-white flex items-center justify-between">
                     <div>
-                      <div className="font-semibold text-slate-800">{m.conditionName || m.condition}</div>
+                      {/* BUG-07: PatientMedicalHistory has 'condition', not 'conditionName' */}
+                      <div className="font-semibold text-slate-800">{m.condition}</div>
                       {m.notes && <div className="text-slate-600 text-[11px] mt-0.5">{m.notes}</div>}
                     </div>
                     <div className="text-right text-[10px] text-slate-400 font-mono">
-                      {formatDate(m.diagnosedAt || m.diagnosedDate || m.createdAt)}
+                      {formatDate(m.diagnosedAt || m.createdAt)}
                     </div>
                   </div>
                 ))}
@@ -569,7 +593,7 @@ export const PatientProfileView: React.FC<PatientProfileViewProps> = ({
                         <div className="text-rose-800 text-[11px] mt-0.5">Reaction: {a.reaction || a.reactionNotes}</div>
                       )}
                     </div>
-                    <button onClick={() => handleDeleteAllergy(a.id)} className="p-1 text-slate-400 hover:text-rose-600 rounded hover:bg-rose-100" title="Remove">
+                    <button onClick={() => setAllergyToDelete(a.id)} className="p-1 text-slate-400 hover:text-rose-600 rounded hover:bg-rose-100" title="Remove">
                       <Trash2 className="w-3.5 h-3.5" />
                     </button>
                   </div>
@@ -887,19 +911,24 @@ export const PatientProfileView: React.FC<PatientProfileViewProps> = ({
             </form>
 
             {/* Footer */}
-            <div className="p-4 border-t border-slate-200 bg-slate-50 flex items-center justify-end gap-2.5 shrink-0">
-              <button type="button" onClick={handleCancelEdit} disabled={editSaving}
-                className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg text-xs font-medium disabled:opacity-50">
-                Cancel
-              </button>
-              <button
-                onClick={handleSaveEdit as any}
-                disabled={editSaving}
-                className="px-5 py-2 bg-teal-600 hover:bg-teal-700 disabled:opacity-50 text-white rounded-lg text-xs font-medium shadow-xs flex items-center gap-1.5"
-              >
-                <Save className="w-3.5 h-3.5" />
-                <span>{editSaving ? 'Saving...' : 'Save Changes'}</span>
-              </button>
+            <div className="p-4 border-t border-slate-200 bg-slate-50 flex items-center justify-between gap-2.5 shrink-0">
+              {editError && (
+                <p className="text-xs text-rose-700 flex-1">{editError}</p>
+              )}
+              <div className="flex items-center justify-end gap-2.5 ml-auto">
+                <button type="button" onClick={handleCancelEdit} disabled={editSaving}
+                  className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg text-xs font-medium disabled:opacity-50">
+                  Cancel
+                </button>
+                <button
+                  onClick={handleSaveEdit as any}
+                  disabled={editSaving}
+                  className="px-5 py-2 bg-teal-600 hover:bg-teal-700 disabled:opacity-50 text-white rounded-lg text-xs font-medium shadow-xs flex items-center gap-1.5"
+                >
+                  <Save className="w-3.5 h-3.5" />
+                  <span>{editSaving ? 'Saving...' : 'Save Changes'}</span>
+                </button>
+              </div>
             </div>
           </div>
         </div>
@@ -965,6 +994,16 @@ export const PatientProfileView: React.FC<PatientProfileViewProps> = ({
         <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-xs z-50 flex items-center justify-center p-4">
           <form onSubmit={handleAddTreatment} className="bg-white rounded-xl shadow-xl border border-slate-200 w-full max-w-md p-5 space-y-4 text-xs">
             <h3 className="font-bold text-sm text-slate-800">Add Planned Treatment</h3>
+            {/* BUG-01: Doctor selector */}
+            <div>
+              <label className="block font-semibold text-slate-700 mb-1">Attending Doctor *</label>
+              <select value={newTreatmentDoctorId} onChange={e => setNewTreatmentDoctorId(e.target.value)} required
+                className="w-full p-2 border border-slate-300 rounded-lg text-xs">
+                {availableDoctors.map(d => (
+                  <option key={d.id} value={d.id}>{d.fullName} ({d.specialization})</option>
+                ))}
+              </select>
+            </div>
             <div>
               <label className="block font-semibold text-slate-700 mb-1">Procedure Name *</label>
               <input type="text" required value={newTreatmentName} onChange={e => setNewTreatmentName(e.target.value)}
@@ -1000,6 +1039,16 @@ export const PatientProfileView: React.FC<PatientProfileViewProps> = ({
         <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-xs z-50 flex items-center justify-center p-4">
           <form onSubmit={handleAddVisit} className="bg-white rounded-xl shadow-xl border border-slate-200 w-full max-w-md p-5 space-y-4 text-xs">
             <h3 className="font-bold text-sm text-slate-800">Record Clinical Consultation Visit</h3>
+            {/* BUG-01: Doctor selector */}
+            <div>
+              <label className="block font-semibold text-slate-700 mb-1">Attending Doctor *</label>
+              <select value={newVisitDoctorId} onChange={e => setNewVisitDoctorId(e.target.value)} required
+                className="w-full p-2 border border-slate-300 rounded-lg text-xs">
+                {availableDoctors.map(d => (
+                  <option key={d.id} value={d.id}>{d.fullName} ({d.specialization})</option>
+                ))}
+              </select>
+            </div>
             <div>
               <label className="block font-semibold text-slate-700 mb-1">Chief Complaint *</label>
               <input type="text" required value={newVisitChiefComplaint} onChange={e => setNewVisitChiefComplaint(e.target.value)} placeholder="e.g. Sensitivity on cold drinks, lower molar"
@@ -1022,6 +1071,20 @@ export const PatientProfileView: React.FC<PatientProfileViewProps> = ({
           </form>
         </div>
       )}
+      {/* ── Allergy Delete Confirmation ───────────────────────── */}
+      <ConfirmDialog
+        isOpen={allergyToDelete !== null}
+        title="Remove Allergy Record"
+        message="This will permanently remove this allergy alert from the patient's file. Clinical warnings dependent on this record will be cleared."
+        confirmLabel="Remove Allergy"
+        cancelLabel="Keep It"
+        variant="danger"
+        onConfirm={async () => {
+          if (allergyToDelete) await handleDeleteAllergy(allergyToDelete);
+          setAllergyToDelete(null);
+        }}
+        onCancel={() => setAllergyToDelete(null)}
+      />
     </div>
   );
 };

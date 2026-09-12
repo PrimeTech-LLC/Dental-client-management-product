@@ -468,7 +468,8 @@ export const PrintCenterModal: React.FC<PrintCenterModalProps> = ({
                       <ul className="list-disc list-inside text-xs space-y-1">
                         {patient.medicalHistory.map((m: any) => (
                           <li key={m.id}>
-                            <strong>{m.conditionName}</strong> {m.notes ? `— ${m.notes}` : ''}
+                            {/* BUG-07: use m.condition (correct field name) */}
+                            <strong>{m.condition}</strong> {m.notes ? `— ${m.notes}` : ''}
                           </li>
                         ))}
                       </ul>
