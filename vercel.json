@@ -1,14 +1,13 @@
 {
   "version": 2,
   "buildCommand": "npm install --prefix app && npm run build --prefix app",
-  "outputDirectory": "app/dist",
   "functions": {
-    "app/api/index.js": {
+    "api/index.js": {
       "memory": 1024,
       "maxDuration": 30
     }
   },
   "rewrites": [
-    { "source": "/(.*)", "destination": "/app/api/index.js" }
+    { "source": "/(.*)", "destination": "/api/index.js" }
   ]
 }
