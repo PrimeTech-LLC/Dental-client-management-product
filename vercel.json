@@ -1,6 +1,7 @@
 {
   "version": 2,
   "buildCommand": "npm install --prefix app && npm run build --prefix app",
+  "outputDirectory": "app/dist",
   "functions": {
     "api/index.js": {
       "memory": 1024,
