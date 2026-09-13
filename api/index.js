@@ -1,11 +1,23 @@
 /**
  * Vercel Serverless Entry Point
  *
- * Vercel calls this file as a serverless function for every request.
- * It loads the built Express app (app/dist/server.cjs) and delegates to it.
+ * Loads the built Express app (app/dist/server.mjs) and exports it
+ * as a Vercel-compatible request handler.
  */
 
 const path = require('path');
-const app = require(path.join(__dirname, '..', 'app', 'dist', 'server.cjs'));
+const serverPath = path.join(__dirname, '..', 'app', 'dist', 'server.mjs');
 
-module.exports = app.default || app;
+let appPromise = null;
+
+function getApp() {
+  if (!appPromise) {
+    appPromise = import(serverPath).then(mod => mod.default || mod);
+  }
+  return appPromise;
+}
+
+module.exports = async (req, res) => {
+  const app = await getApp();
+  app(req, res);
+};
