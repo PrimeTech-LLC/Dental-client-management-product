@@ -6,6 +6,7 @@
     "dev:api": "npm run dev:api --prefix app",
     "dev:ui": "npm run dev:ui --prefix app",
     "build": "npm run build --prefix app",
+    "vercel-build": "npm install --prefix app && npm run build --prefix app",
     "start": "npm run start --prefix app",
     "migrate": "npm run migrate --prefix app",
     "migrate:seed": "npm run migrate:seed --prefix app",
