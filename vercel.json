@@ -1,15 +1,14 @@
 {
   "version": 2,
-  "builds": [
-    {
-      "src": "app/dist/server.cjs",
-      "use": "@vercel/node"
+  "buildCommand": "npm install --prefix app && npm run build --prefix app",
+  "outputDirectory": "app/dist",
+  "functions": {
+    "app/api/index.js": {
+      "memory": 1024,
+      "maxDuration": 30
     }
-  ],
-  "routes": [
-    {
-      "src": "/(.*)",
-      "dest": "app/dist/server.cjs"
-    }
+  },
+  "rewrites": [
+    { "source": "/(.*)", "destination": "/app/api/index.js" }
   ]
 }
