@@ -696,23 +696,33 @@ export async function getPatients(
   let countRows: any[];
 
   if (q) {
-    const like = `%${q.toLowerCase()}%`;
+    // SEC-05: escape SQL LIKE wildcard characters so user-typed % _ \ don't
+    // accidentally match arbitrary records.
+    const escaped = q.toLowerCase().replace(/[%_\\]/g, '\\$&');
+    const like = `%${escaped}%`;
+    // Phone / patient_number search keeps the original (unescaped) query so that
+    // partial numeric strings still match, but we use the exact input not lower-case.
+    const rawLike = `%${q.replace(/[%_\\]/g, '\\$&')}%`;
     rows = await query(
       `SELECT * FROM patients
-       WHERE lower(first_name) LIKE $1 OR lower(last_name) LIKE $1
-          OR lower(first_name || ' ' || last_name) LIKE $1
-          OR phone LIKE $2 OR patient_number LIKE $2
-          OR lower(email) LIKE $1
+       WHERE lower(first_name) LIKE $1 ESCAPE '\\'
+          OR lower(last_name)  LIKE $1 ESCAPE '\\'
+          OR lower(first_name || ' ' || last_name) LIKE $1 ESCAPE '\\'
+          OR phone LIKE $2 ESCAPE '\\'
+          OR patient_number LIKE $2 ESCAPE '\\'
+          OR lower(email) LIKE $1 ESCAPE '\\'
        ORDER BY created_at DESC LIMIT $3 OFFSET $4`,
-      [like, `%${q}%`, limit, offset]
+      [like, rawLike, limit, offset]
     );
     countRows = await query(
       `SELECT COUNT(*) FROM patients
-       WHERE lower(first_name) LIKE $1 OR lower(last_name) LIKE $1
-          OR lower(first_name || ' ' || last_name) LIKE $1
-          OR phone LIKE $2 OR patient_number LIKE $2
-          OR lower(email) LIKE $1`,
-      [like, `%${q}%`]
+       WHERE lower(first_name) LIKE $1 ESCAPE '\\'
+          OR lower(last_name)  LIKE $1 ESCAPE '\\'
+          OR lower(first_name || ' ' || last_name) LIKE $1 ESCAPE '\\'
+          OR phone LIKE $2 ESCAPE '\\'
+          OR patient_number LIKE $2 ESCAPE '\\'
+          OR lower(email) LIKE $1 ESCAPE '\\'`,
+      [like, rawLike]
     );
   } else {
     rows = await query(
