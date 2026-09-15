@@ -411,7 +411,20 @@ app.post('/api/patients', async (req, res) => {
 app.put('/api/patients/:id', async (req, res) => {
   try {
     const cu = currentUser(req);
-    const updated = await db.updatePatient(req.params.id, req.body, cu.id, cu.name, getClientIp(req));
+    // DATA-02: normalise empty strings to null so nullable fields can be cleared
+    const nullify = (v: any) => (v === '' ? null : v);
+    const updates = {
+      ...req.body,
+      alternatePhone:           nullify(req.body.alternatePhone),
+      email:                    nullify(req.body.email),
+      address:                  nullify(req.body.address),
+      emergencyContactName:     nullify(req.body.emergencyContactName),
+      emergencyContactPhone:    nullify(req.body.emergencyContactPhone),
+      emergencyContactRelation: nullify(req.body.emergencyContactRelation),
+      occupation:               nullify(req.body.occupation),
+      generalMedicalNotes:      nullify(req.body.generalMedicalNotes),
+    };
+    const updated = await db.updatePatient(req.params.id, updates, cu.id, cu.name, getClientIp(req));
     if (!updated) return res.status(404).json({ success: false, error: { code: 'NOT_FOUND', message: 'Patient not found' } });
     res.json({ success: true, data: updated });
   } catch (err: any) { res.status(500).json({ success: false, error: { message: err.message } }); }

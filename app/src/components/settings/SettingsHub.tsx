@@ -9,6 +9,8 @@ export const SettingsHub: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [savedSuccess, setSavedSuccess] = useState(false);
+  // UX-05: inline save error replaces bare alert()
+  const [saveError, setSaveError] = useState('');
 
   // Form states
   const [clinicName, setClinicName] = useState('');
@@ -56,6 +58,7 @@ export const SettingsHub: React.FC = () => {
 
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
+    setSaveError('');
     try {
       setSaving(true);
       const updated = await api.updateSettings({
@@ -77,7 +80,8 @@ export const SettingsHub: React.FC = () => {
       setSavedSuccess(true);
       setTimeout(() => setSavedSuccess(false), 3000);
     } catch (err: any) {
-      alert(`Failed to save settings: ${err.message}`);
+      // UX-05: inline error replaces bare alert()
+      setSaveError(err.message || 'Failed to save settings. Please try again.');
     } finally {
       setSaving(false);
     }
@@ -271,7 +275,16 @@ export const SettingsHub: React.FC = () => {
         </div>
 
         {/* Save button */}
-        <div className="flex justify-end">
+        <div className="flex flex-col items-end gap-2">
+          {/* UX-05: inline error display */}
+          {saveError && (
+            <div className="w-full p-3 rounded-lg bg-rose-50 border border-rose-300 text-rose-900 text-xs flex items-start gap-2">
+              <svg className="w-4 h-4 text-rose-600 shrink-0 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+              <span>{saveError}</span>
+            </div>
+          )}
           <button
             type="submit"
             disabled={saving}

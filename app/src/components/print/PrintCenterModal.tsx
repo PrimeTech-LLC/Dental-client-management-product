@@ -39,8 +39,15 @@ export const PrintCenterModal: React.FC<PrintCenterModalProps> = ({
   // Loaded dynamic data
   const [appointments, setAppointments] = useState<Appointment[]>([]);
   const [patient, setPatient] = useState<any>(null);
+  // BUG-09: initialise from prop but also sync whenever selectedPrescription changes
   const [prescription, setPrescription] = useState<any>(selectedPrescription || null);
   const [loading, setLoading] = useState(false);
+
+  // BUG-09: keep local prescription state in sync whenever the prop changes
+  // (e.g. modal re-opened with a different prescription)
+  useEffect(() => {
+    setPrescription(selectedPrescription || null);
+  }, [selectedPrescription]);
 
   useEffect(() => {
     if (defaultDocType) setDocType(defaultDocType);

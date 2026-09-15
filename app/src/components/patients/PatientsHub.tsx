@@ -50,9 +50,10 @@ export const PatientsHub: React.FC<PatientsHubProps> = ({
   };
 
   useEffect(() => {
+    // PERF-03: increased from 200ms to 500ms to reduce DB load during rapid typing
     const timer = setTimeout(() => {
       loadPatients();
-    }, 200);
+    }, 500);
     return () => clearTimeout(timer);
   }, [searchQuery]);
 
