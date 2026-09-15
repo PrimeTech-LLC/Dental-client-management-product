@@ -1,5 +1,5 @@
 /**
- * Apex Dental Clinic Management System
+ * MDS Clinic (Mehmood Dental Surgeon) Management System
  * Core Domain Types and Enums
  */
 

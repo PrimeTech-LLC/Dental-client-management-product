@@ -1,5 +1,5 @@
 /**
- * Apex Dental Clinic — Postgres Database Layer
+ * MDS Clinic (Mehmood Dental Surgeon) — Postgres Database Layer
  * All persistence now goes through Neon Postgres via the pool in connection.ts
  * Column names: snake_case in DB → camelCase in TypeScript (mapped explicitly)
  */

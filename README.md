@@ -1,6 +1,6 @@
-# Apex Dental Care — Clinic Management System
+# MDS Clinic (Mehmood Dental Surgeon) — Clinic Management System
 
-A professional receptionist-facing clinic management application for dental practices. Built with React, TypeScript, Express, and Neon Postgres.
+A professional receptionist-facing clinic management application for MDS Clinic. Built with React, TypeScript, Express, and Neon Postgres.
 
 ---
 

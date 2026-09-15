@@ -15,7 +15,7 @@ const __dirname  = path.dirname(__filename);
 const IS_PROD    = process.env.NODE_ENV === 'production';
 const JWT_SECRET = process.env.JWT_SECRET ?? (IS_PROD
   ? (() => { console.error('FATAL: JWT_SECRET must be set in production. Refusing to start.'); process.exit(1); })()!
-  : 'apex-dental-dev-secret-change-me');
+  : 'mds-clinic-dev-secret-change-me');
 
 const JWT_EXPIRY = '12h';
 const API_PORT   = IS_PROD ? (Number(process.env.PORT) || 3000) : 3001;
@@ -849,7 +849,7 @@ if (IS_PROD) {
 // ─── Start ────────────────────────────────────────────────────────────────────
 
 app.listen(API_PORT, () => {
-  console.log(`🦷  Apex Dental API → http://localhost:${API_PORT}`);
+  console.log(`🦷  MDS Clinic API → http://localhost:${API_PORT}`);
   console.log(`   Mode: ${IS_PROD ? 'production' : 'development (Vite proxies /api from :3000)'}`);
 });
 
