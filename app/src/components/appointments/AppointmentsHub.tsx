@@ -27,6 +27,8 @@ interface AppointmentsHubProps {
   onRescheduleAppointment: (appointment: Appointment) => void;
   onSelectAppointment: (appointment: Appointment) => void;
   onOpenPrintCenter: (docType: string, appointment?: Appointment) => void;
+  /** Increment this value from the parent to trigger a data refresh after a new booking. */
+  refreshKey?: number;
 }
 
 type ViewMode = 'day' | 'week' | 'list';
@@ -36,7 +38,8 @@ export const AppointmentsHub: React.FC<AppointmentsHubProps> = ({
   onSelectPatient,
   onRescheduleAppointment,
   onSelectAppointment,
-  onOpenPrintCenter
+  onOpenPrintCenter,
+  refreshKey = 0,
 }) => {
   const [viewMode, setViewMode] = useState<ViewMode>('day');
   const [selectedDate, setSelectedDate] = useState<Date>(new Date());
@@ -72,7 +75,7 @@ export const AppointmentsHub: React.FC<AppointmentsHubProps> = ({
 
   useEffect(() => {
     fetchAppointments();
-  }, []);
+  }, [refreshKey]);
 
   // Filter appointments
   const filteredAppointments = appointments.filter(a => {

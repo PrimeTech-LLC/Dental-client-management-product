@@ -37,6 +37,9 @@ export const PrescriptionEditorModal: React.FC<PrescriptionEditorModalProps> = (
 
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState('');
+  // Finding 12: show server-side allergy warnings (covers more drug families
+  // than the client-side check) after a successful save
+  const [serverAllergyWarning, setServerAllergyWarning] = useState('');
 
   useEffect(() => {
     if (!isOpen) return;
@@ -133,6 +136,7 @@ export const PrescriptionEditorModal: React.FC<PrescriptionEditorModalProps> = (
   const handleSubmit = async (e: React.FormEvent, shouldPrint = false) => {
     e.preventDefault();
     setSubmitError('');
+    setServerAllergyWarning('');
     if (!selectedPatientId || !selectedDoctorId) {
       setSubmitError('Please select a patient and a doctor.');
       return;
@@ -162,6 +166,18 @@ export const PrescriptionEditorModal: React.FC<PrescriptionEditorModalProps> = (
           instructions: it.instructions || 'As directed'
         }))
       });
+
+      // Finding 12: surface server-side allergy warnings (covers more drug
+      // families than the client-side pre-check)
+      if ((rx as any).allergyWarnings) {
+        setServerAllergyWarning((rx as any).allergyWarnings);
+        // Don't close the modal immediately — let the user acknowledge the warning
+        onSuccess(rx);
+        if (shouldPrint && onOpenPrintCenter) {
+          onOpenPrintCenter('Prescription', undefined, selectedPatientId, rx);
+        }
+        return; // stay open so user sees the warning
+      }
 
       onSuccess(rx);
       if (shouldPrint && onOpenPrintCenter) {
@@ -194,11 +210,31 @@ export const PrescriptionEditorModal: React.FC<PrescriptionEditorModalProps> = (
           </button>
         </div>
 
-        {/* Allergy Warning Banner */}
+        {/* Allergy Warning Banner — client-side pre-check */}
         {allergyWarning && (
           <div className="p-3 bg-rose-50 border-b border-rose-300 text-rose-900 text-xs font-bold flex items-center gap-2 animate-pulse">
             <AlertTriangle className="w-4 h-4 text-rose-600 shrink-0" />
             <span>{allergyWarning}</span>
+          </div>
+        )}
+
+        {/* Finding 12: server-side allergy warning returned after successful save */}
+        {serverAllergyWarning && (
+          <div className="p-3 bg-rose-50 border-b border-rose-400 text-rose-900 text-xs font-bold space-y-1">
+            <div className="flex items-center gap-2">
+              <AlertTriangle className="w-4 h-4 text-rose-600 shrink-0" />
+              <span>Allergy Warning from Clinical Safety Check:</span>
+            </div>
+            <pre className="whitespace-pre-wrap font-sans text-xs text-rose-800 pl-6">{serverAllergyWarning}</pre>
+            <div className="pl-6 pt-1">
+              <button
+                type="button"
+                onClick={onClose}
+                className="px-3 py-1 bg-rose-600 hover:bg-rose-700 text-white rounded text-xs font-semibold"
+              >
+                Acknowledged — Close
+              </button>
+            </div>
           </div>
         )}
 

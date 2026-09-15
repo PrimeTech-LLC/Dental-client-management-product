@@ -150,8 +150,16 @@ export const PatientsHub: React.FC<PatientsHubProps> = ({
                   return (
                     <tr
                       key={p.id}
-                      className="hover:bg-slate-50/80 transition-colors group cursor-pointer"
+                      role="button"
+                      tabIndex={0}
+                      className="hover:bg-slate-50/80 transition-colors group cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-teal-500"
                       onClick={() => onSelectPatient(p.id)}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter' || e.key === ' ') {
+                          e.preventDefault();
+                          onSelectPatient(p.id);
+                        }
+                      }}
                     >
                       {/* PT Number */}
                       <td className="py-3 px-4 whitespace-nowrap font-mono text-[11px] font-bold text-teal-800">

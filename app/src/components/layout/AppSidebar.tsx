@@ -50,6 +50,8 @@ export const AppSidebar: React.FC<AppSidebarProps> = ({
   const activeKey = currentSection || currentTab || 'dashboard';
   const handleSelect = onNavigate || onSelectTab || (() => {});
 
+  const isAdmin = currentUser?.role === 'ADMIN';
+
   const navItems: { key: NavItemKey; label: string; icon: React.FC<{ className?: string }> }[] = [
     { key: 'dashboard',     label: 'Dashboard',    icon: LayoutDashboard },
     { key: 'patients',      label: 'Patients',     icon: Users },
@@ -59,7 +61,8 @@ export const AppSidebar: React.FC<AppSidebarProps> = ({
     { key: 'treatments',    label: 'Treatments',   icon: UserRoundCheck },
     { key: 'reminders',     label: 'Reminders',    icon: Bell },
     { key: 'reports',       label: 'Reports',      icon: BarChart3 },
-    { key: 'audit',         label: 'Audit Logs',   icon: ShieldAlert },
+    // Finding 6: audit logs are admin-only — hide the nav item for receptionists
+    ...(isAdmin ? [{ key: 'audit' as NavItemKey, label: 'Audit Logs', icon: ShieldAlert }] : []),
     { key: 'settings',      label: 'Settings',     icon: Settings },
     { key: 'staff',         label: 'Staff Mgmt',   icon: UserCog },
   ];

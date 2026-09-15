@@ -27,6 +27,7 @@ export const UsersHub: React.FC<UsersHubProps> = ({ currentUserId }) => {
 
   // Delete confirm
   const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [deleteErrorMsg, setDeleteErrorMsg] = useState('');
 
   const load = async () => {
     try {
@@ -99,9 +100,10 @@ export const UsersHub: React.FC<UsersHubProps> = ({ currentUserId }) => {
     try {
       await api.deleteReceptionist(id);
       setDeletingId(null);
+      setDeleteErrorMsg('');
       await load();
     } catch (err: any) {
-      alert(err.message || 'Failed to delete account.');
+      setDeleteErrorMsg(err.message || 'Failed to delete account.');
     }
   };
 
@@ -128,13 +130,12 @@ export const UsersHub: React.FC<UsersHubProps> = ({ currentUserId }) => {
         </button>
       </div>
 
-      {/* Info banner */}
+      {/* Info banner — no hardcoded credentials */}
       <div className="flex items-start gap-3 p-3.5 bg-teal-50 border border-teal-200 rounded-xl text-xs text-teal-900">
         <ShieldCheck className="w-4 h-4 text-teal-600 shrink-0 mt-0.5" />
         <div>
-          <span className="font-semibold">Default password for new accounts: </span>
-          <span className="font-mono">dental123</span>
-          <span className="text-teal-700"> — remind staff to change it after first login.</span>
+          New accounts are created with a temporary password.{' '}
+          Staff will be prompted to set a new password on first login.
         </div>
       </div>
 
@@ -343,9 +344,14 @@ export const UsersHub: React.FC<UsersHubProps> = ({ currentUserId }) => {
                 </p>
               </div>
             </div>
+            {deleteErrorMsg && (
+              <div className="p-2.5 bg-rose-50 border border-rose-200 rounded-lg text-rose-800 text-xs">
+                {deleteErrorMsg}
+              </div>
+            )}
             <div className="flex justify-end gap-2 pt-2 border-t border-slate-100">
               <button
-                onClick={() => setDeletingId(null)}
+                onClick={() => { setDeletingId(null); setDeleteErrorMsg(''); }}
                 className="px-3 py-1.5 bg-slate-100 hover:bg-slate-200 rounded-lg text-slate-700 font-medium"
               >
                 Cancel
