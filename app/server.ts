@@ -20,11 +20,19 @@ const JWT_SECRET = process.env.JWT_SECRET ?? (IS_PROD
 const JWT_EXPIRY = '12h';
 const API_PORT   = IS_PROD ? (Number(process.env.PORT) || 3000) : 3001;
 
+// ─── IP extraction helper ─────────────────────────────────────────────────────
+function getClientIp(req: express.Request): string {
+  return (req.headers['x-forwarded-for'] as string)?.split(',')[0]?.trim()
+    ?? req.socket.remoteAddress
+    ?? 'unknown';
+}
+
 // ─── Auth helpers ─────────────────────────────────────────────────────────────
 
+// SEC-06: Minimise JWT payload — only id + role; name/email are fetched from DB on each request
 function signToken(user: User): string {
   return jwt.sign(
-    { id: user.id, role: user.role, name: user.name, email: user.email },
+    { id: user.id, role: user.role },
     JWT_SECRET,
     { expiresIn: JWT_EXPIRY }
   );
@@ -236,10 +244,11 @@ app.post('/api/auth/login', loginRateLimiter, async (req, res) => {
     await db.updateUserLastLogin(user.id);
     const token = signToken(user);
     setAuthCookie(res, token);
-    // SCHEMA-03: use real user id in audit log
+    // SEC-08: capture IP in audit log
     await db.logAudit({
       userId: user.id, userName: user.name, userRole: user.role,
       action: 'USER_LOGIN', entityType: 'USER', entityId: user.id, entityName: user.name,
+      ipAddress: getClientIp(req),
     });
     // CONFIG-02: include mustChangePassword flag in login response
     return res.json({ success: true, data: { user } });
@@ -305,7 +314,7 @@ app.use('/api', (req, res, next) => {
 });
 
 // ─── Users / Staff management ─────────────────────────────────────────────────
-// SEC-07: list receptionists is fine for any authenticated user (e.g. for selection dropdowns)
+// Any authenticated user can list receptionists (needed for selection dropdowns)
 app.get('/api/users/receptionists', async (req, res) => {
   try {
     const users = await db.getReceptionists();
@@ -313,15 +322,16 @@ app.get('/api/users/receptionists', async (req, res) => {
   } catch (err: any) { res.status(500).json({ success: false, error: { message: err.message } }); }
 });
 
-// SEC-07: only ADMIN can create / modify / delete receptionist accounts
-app.post('/api/users/receptionists', requireRole('ADMIN', 'RECEPTIONIST'), async (req, res) => {
+// SEC-01: only ADMIN can create / modify / delete receptionist accounts
+app.post('/api/users/receptionists', requireRole('ADMIN'), async (req, res) => {
   try {
     const { name, email, password } = req.body;
     if (!name || !email || !password) {
       return res.status(400).json({ success: false, error: { code: 'MISSING_FIELDS', message: 'Name, email, and password are required' } });
     }
-    if (password.length < 6) {
-      return res.status(400).json({ success: false, error: { message: 'Password must be at least 6 characters.' } });
+    // SEC-02: standardised minimum password length
+    if (password.length < 8) {
+      return res.status(400).json({ success: false, error: { message: 'Password must be at least 8 characters.' } });
     }
     const cu = currentUser(req);
     const user = await db.createReceptionist({ name, email, password }, cu.id, cu.name);
@@ -332,7 +342,7 @@ app.post('/api/users/receptionists', requireRole('ADMIN', 'RECEPTIONIST'), async
   }
 });
 
-app.put('/api/users/receptionists/:id', requireRole('ADMIN', 'RECEPTIONIST'), async (req, res) => {
+app.put('/api/users/receptionists/:id', requireRole('ADMIN'), async (req, res) => {
   try {
     const cu = currentUser(req);
     const updated = await db.updateReceptionist(req.params.id, req.body, cu.id, cu.name);
@@ -344,7 +354,7 @@ app.put('/api/users/receptionists/:id', requireRole('ADMIN', 'RECEPTIONIST'), as
   }
 });
 
-app.delete('/api/users/receptionists/:id', requireRole('ADMIN', 'RECEPTIONIST'), async (req, res) => {
+app.delete('/api/users/receptionists/:id', requireRole('ADMIN'), async (req, res) => {
   try {
     if (req.params.id === currentUser(req).id) {
       return res.status(400).json({ success: false, error: { code: 'SELF_DELETE', message: 'You cannot delete your own account' } });
@@ -390,7 +400,7 @@ app.post('/api/patients', async (req, res) => {
   try {
     validatePatientBody(req.body);
     const cu = currentUser(req);
-    const patient = await db.addPatient(req.body, cu.id, cu.name);
+    const patient = await db.addPatient(req.body, cu.id, cu.name, getClientIp(req));
     res.status(201).json({ success: true, data: patient });
   } catch (err: any) {
     if (err.status === 400) return handleValidationError(err, res);
@@ -401,7 +411,20 @@ app.post('/api/patients', async (req, res) => {
 app.put('/api/patients/:id', async (req, res) => {
   try {
     const cu = currentUser(req);
-    const updated = await db.updatePatient(req.params.id, req.body, cu.id, cu.name);
+    // DATA-02: normalise empty strings to null so nullable fields can be cleared
+    const nullify = (v: any) => (v === '' ? null : v);
+    const updates = {
+      ...req.body,
+      alternatePhone:           nullify(req.body.alternatePhone),
+      email:                    nullify(req.body.email),
+      address:                  nullify(req.body.address),
+      emergencyContactName:     nullify(req.body.emergencyContactName),
+      emergencyContactPhone:    nullify(req.body.emergencyContactPhone),
+      emergencyContactRelation: nullify(req.body.emergencyContactRelation),
+      occupation:               nullify(req.body.occupation),
+      generalMedicalNotes:      nullify(req.body.generalMedicalNotes),
+    };
+    const updated = await db.updatePatient(req.params.id, updates, cu.id, cu.name, getClientIp(req));
     if (!updated) return res.status(404).json({ success: false, error: { code: 'NOT_FOUND', message: 'Patient not found' } });
     res.json({ success: true, data: updated });
   } catch (err: any) { res.status(500).json({ success: false, error: { message: err.message } }); }
@@ -442,8 +465,20 @@ app.post('/api/patients/:id/dental-chart', async (req, res) => {
     if (!toothNumber || !condition) {
       return res.status(400).json({ success: false, error: { message: 'toothNumber and condition are required.' } });
     }
+    // SEC-07: validate tooth number range and condition enum
+    const num = Number(toothNumber);
+    if (!Number.isInteger(num) || num < 1 || num > 52) {
+      return res.status(400).json({ success: false, error: { message: 'toothNumber must be an integer between 1 and 52.' } });
+    }
+    const VALID_CONDITIONS = [
+      'HEALTHY','CARIES','FILLED','CROWN','ROOT_CANAL',
+      'MISSING','IMPLANT','EXTRACTION_INDICATED','FRACTURED','BRIDGE'
+    ];
+    if (!VALID_CONDITIONS.includes(condition)) {
+      return res.status(400).json({ success: false, error: { message: `condition must be one of: ${VALID_CONDITIONS.join(', ')}.` } });
+    }
     const cu = currentUser(req);
-    const item = await db.updateToothCondition(req.params.id, Number(toothNumber), condition, notes, cu.name);
+    const item = await db.updateToothCondition(req.params.id, num, condition, notes, cu.name);
     res.json({ success: true, data: item });
   } catch (err: any) { res.status(500).json({ success: false, error: { message: err.message } }); }
 });
@@ -593,9 +628,33 @@ app.put('/api/appointments/:id/status', async (req, res) => {
   try {
     const { status } = req.body;
     if (!status) return res.status(400).json({ success: false, error: { message: 'status is required.' } });
+
+    // BUG-06: enforce valid status transitions — prevent backwards/illegal moves
+    const VALID_TRANSITIONS: Record<string, string[]> = {
+      SCHEDULED:   ['CONFIRMED', 'ARRIVED', 'CANCELLED', 'NO_SHOW'],
+      CONFIRMED:   ['ARRIVED', 'CANCELLED', 'NO_SHOW'],
+      ARRIVED:     ['IN_PROGRESS', 'CANCELLED', 'NO_SHOW'],
+      IN_PROGRESS: ['COMPLETED', 'CANCELLED'],
+      COMPLETED:   [],
+      CANCELLED:   [],
+      NO_SHOW:     [],
+      RESCHEDULED: ['CONFIRMED', 'ARRIVED', 'CANCELLED'],
+    };
+    const current = await db.getAppointmentById(req.params.id);
+    if (!current) return res.status(404).json({ success: false, error: { code: 'NOT_FOUND', message: 'Appointment not found' } });
+    const allowed = VALID_TRANSITIONS[current.status] ?? [];
+    if (!allowed.includes(status)) {
+      return res.status(400).json({
+        success: false,
+        error: {
+          code: 'INVALID_STATUS_TRANSITION',
+          message: `Cannot transition appointment from "${current.status}" to "${status}". Allowed next states: ${allowed.length > 0 ? allowed.join(', ') : 'none (terminal state)'}.`
+        }
+      });
+    }
+
     const cu = currentUser(req);
     const updated = await db.updateAppointmentStatus(req.params.id, status, cu.id, cu.name);
-    if (!updated) return res.status(404).json({ success: false, error: { code: 'NOT_FOUND', message: 'Appointment not found' } });
     res.json({ success: true, data: updated });
   } catch (err: any) { res.status(500).json({ success: false, error: { message: err.message } }); }
 });

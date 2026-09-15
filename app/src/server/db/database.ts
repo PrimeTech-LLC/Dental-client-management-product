@@ -539,6 +539,8 @@ export async function getDoctorAvailability(doctorId: string): Promise<DoctorAva
   return rows.map(mapAvailability);
 }
 
+// DATA-01: Remove manual id generation with Date.now() — let the DB generate UUIDs
+// to avoid primary key collisions when multiple rows are inserted in the same millisecond.
 export async function updateDoctorAvailability(
   doctorId: string,
   availabilityList: DoctorAvailability[]
@@ -546,10 +548,12 @@ export async function updateDoctorAvailability(
   await transaction(async (q) => {
     await q('DELETE FROM doctor_availability WHERE doctor_id = $1', [doctorId]);
     for (const av of availabilityList) {
+      // Let Postgres generate the id via DEFAULT gen_random_uuid() — never reuse a
+      // client-supplied id that may clash when the same loop runs multiple times.
       await q(
-        `INSERT INTO doctor_availability (id, doctor_id, day_of_week, start_time, end_time, is_available)
-         VALUES ($1,$2,$3,$4,$5,$6)`,
-        [av.id || `avail-${Date.now()}-${av.dayOfWeek}`, doctorId, av.dayOfWeek, av.startTime, av.endTime, av.isAvailable]
+        `INSERT INTO doctor_availability (doctor_id, day_of_week, start_time, end_time, is_available)
+         VALUES ($1,$2,$3,$4,$5)`,
+        [doctorId, av.dayOfWeek, av.startTime, av.endTime, av.isAvailable]
       );
     }
   });
@@ -696,23 +700,33 @@ export async function getPatients(
   let countRows: any[];
 
   if (q) {
-    const like = `%${q.toLowerCase()}%`;
+    // SEC-05: escape SQL LIKE wildcard characters so user-typed % _ \ don't
+    // accidentally match arbitrary records.
+    const escaped = q.toLowerCase().replace(/[%_\\]/g, '\\$&');
+    const like = `%${escaped}%`;
+    // Phone / patient_number search keeps the original (unescaped) query so that
+    // partial numeric strings still match, but we use the exact input not lower-case.
+    const rawLike = `%${q.replace(/[%_\\]/g, '\\$&')}%`;
     rows = await query(
       `SELECT * FROM patients
-       WHERE lower(first_name) LIKE $1 OR lower(last_name) LIKE $1
-          OR lower(first_name || ' ' || last_name) LIKE $1
-          OR phone LIKE $2 OR patient_number LIKE $2
-          OR lower(email) LIKE $1
+       WHERE lower(first_name) LIKE $1 ESCAPE '\\'
+          OR lower(last_name)  LIKE $1 ESCAPE '\\'
+          OR lower(first_name || ' ' || last_name) LIKE $1 ESCAPE '\\'
+          OR phone LIKE $2 ESCAPE '\\'
+          OR patient_number LIKE $2 ESCAPE '\\'
+          OR lower(email) LIKE $1 ESCAPE '\\'
        ORDER BY created_at DESC LIMIT $3 OFFSET $4`,
-      [like, `%${q}%`, limit, offset]
+      [like, rawLike, limit, offset]
     );
     countRows = await query(
       `SELECT COUNT(*) FROM patients
-       WHERE lower(first_name) LIKE $1 OR lower(last_name) LIKE $1
-          OR lower(first_name || ' ' || last_name) LIKE $1
-          OR phone LIKE $2 OR patient_number LIKE $2
-          OR lower(email) LIKE $1`,
-      [like, `%${q}%`]
+       WHERE lower(first_name) LIKE $1 ESCAPE '\\'
+          OR lower(last_name)  LIKE $1 ESCAPE '\\'
+          OR lower(first_name || ' ' || last_name) LIKE $1 ESCAPE '\\'
+          OR phone LIKE $2 ESCAPE '\\'
+          OR patient_number LIKE $2 ESCAPE '\\'
+          OR lower(email) LIKE $1 ESCAPE '\\'`,
+      [like, rawLike]
     );
   } else {
     rows = await query(
@@ -852,69 +866,102 @@ export async function checkDuplicatePatient(
   return rows.map(mapPatient);
 }
 
+// BUG-07: Wrap counter increment + INSERT in a single transaction so a crash
+// between the two statements cannot leave a gap or allow two patients to share
+// the same patient_number under concurrent load.
 export async function addPatient(
   patientData: Omit<Patient, 'id' | 'patientNumber' | 'createdAt' | 'updatedAt'>,
   actorId = 'system',
-  actorName = 'Receptionist'
+  actorName = 'Receptionist',
+  ipAddress?: string
 ): Promise<Patient> {
-  const patientNumber = await generatePatientNumber();
-  const rows = await query<any>(
-    `INSERT INTO patients
-       (patient_number, first_name, last_name, date_of_birth, gender, phone, alternate_phone,
-        email, address, emergency_contact_name, emergency_contact_phone, emergency_contact_relation,
-        blood_group, occupation, allergies, general_medical_notes, status)
-     VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17)
-     RETURNING *`,
-    [patientNumber, patientData.firstName, patientData.lastName, patientData.dateOfBirth,
-     patientData.gender, patientData.phone, patientData.alternatePhone ?? null,
-     patientData.email ?? null, patientData.address ?? null,
-     patientData.emergencyContactName ?? null, patientData.emergencyContactPhone ?? null,
-     patientData.emergencyContactRelation ?? null, patientData.bloodGroup,
-     patientData.occupation ?? null, patientData.allergies ?? null,
-     patientData.generalMedicalNotes ?? null, patientData.status ?? 'ACTIVE']
-  );
-  const patient = mapPatient(rows[0]);
-  await logAudit({ userId: actorId, userName: actorName, userRole: 'RECEPTIONIST', action: 'PATIENT_CREATED', entityType: 'PATIENT', entityId: patient.id, entityName: `${patient.firstName} ${patient.lastName} (${patient.patientNumber})` });
-  return patient;
+  return transaction(async (q) => {
+    // Atomically increment the counter and claim the next sequence value.
+    const ctrRows = await q<{ value: number }>(
+      `UPDATE counters SET value = value + 1 WHERE name = 'patient_seq' RETURNING value`
+    );
+    const patientNumber = `PT-${String(ctrRows[0].value).padStart(6, '0')}`;
+
+    const rows = await q<any>(
+      `INSERT INTO patients
+         (patient_number, first_name, last_name, date_of_birth, gender, phone, alternate_phone,
+          email, address, emergency_contact_name, emergency_contact_phone, emergency_contact_relation,
+          blood_group, occupation, allergies, general_medical_notes, status)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17)
+       RETURNING *`,
+      [patientNumber, patientData.firstName, patientData.lastName, patientData.dateOfBirth,
+       patientData.gender, patientData.phone, patientData.alternatePhone ?? null,
+       patientData.email ?? null, patientData.address ?? null,
+       patientData.emergencyContactName ?? null, patientData.emergencyContactPhone ?? null,
+       patientData.emergencyContactRelation ?? null, patientData.bloodGroup,
+       patientData.occupation ?? null, patientData.allergies ?? null,
+       patientData.generalMedicalNotes ?? null, patientData.status ?? 'ACTIVE']
+    );
+    // Note: logAudit is called outside the transaction to avoid holding the
+    // transaction open while performing an unrelated write.
+    const patient = mapPatient(rows[0]);
+    await logAudit({
+      userId: actorId, userName: actorName, userRole: 'RECEPTIONIST',
+      action: 'PATIENT_CREATED', entityType: 'PATIENT',
+      entityId: patient.id,
+      entityName: `${patient.firstName} ${patient.lastName} (${patient.patientNumber})`,
+      ipAddress,
+    });
+    return patient;
+  });
 }
 
+// DATA-02: Replace COALESCE with explicit per-field assignment so nullable fields
+// can be intentionally cleared when the caller passes an empty string or explicit null.
+// The server maps "" → null before calling this function (see server.ts PUT /api/patients/:id).
 export async function updatePatient(
   id: string,
   updates: Partial<Patient>,
   actorId = 'system',
-  actorName = 'Receptionist'
+  actorName = 'Receptionist',
+  ipAddress?: string
 ): Promise<Patient | null> {
+  // Build a dynamic SET clause — only columns that were explicitly provided are
+  // updated. Required fields (firstName, lastName, phone, dateOfBirth, gender,
+  // bloodGroup, status) fall back to COALESCE since they must never be NULL.
+  // Nullable/optional fields use direct assignment so they can be cleared.
+  const sets: string[] = ['updated_at = NOW()'];
+  const params: any[] = [];
+  let i = 1;
+
+  // Required — use COALESCE so an accidental null doesn't wipe them
+  if (updates.firstName    !== undefined) { sets.push(`first_name = COALESCE($${i++}, first_name)`);   params.push(updates.firstName || null); }
+  if (updates.lastName     !== undefined) { sets.push(`last_name = COALESCE($${i++}, last_name)`);     params.push(updates.lastName  || null); }
+  if (updates.dateOfBirth  !== undefined) { sets.push(`date_of_birth = COALESCE($${i++}, date_of_birth)`); params.push(updates.dateOfBirth || null); }
+  if (updates.gender       !== undefined) { sets.push(`gender = COALESCE($${i++}, gender)`);           params.push(updates.gender    || null); }
+  if (updates.phone        !== undefined) { sets.push(`phone = COALESCE($${i++}, phone)`);             params.push(updates.phone     || null); }
+  if (updates.bloodGroup   !== undefined) { sets.push(`blood_group = COALESCE($${i++}, blood_group)`); params.push(updates.bloodGroup || null); }
+  if (updates.status       !== undefined) { sets.push(`status = COALESCE($${i++}, status)`);           params.push(updates.status    || null); }
+
+  // Optional/nullable — direct assignment so "" or null clears the value
+  if ('alternatePhone'            in updates) { sets.push(`alternate_phone = $${i++}`);              params.push(updates.alternatePhone            ?? null); }
+  if ('email'                     in updates) { sets.push(`email = $${i++}`);                        params.push(updates.email                     ?? null); }
+  if ('address'                   in updates) { sets.push(`address = $${i++}`);                      params.push(updates.address                   ?? null); }
+  if ('emergencyContactName'      in updates) { sets.push(`emergency_contact_name = $${i++}`);       params.push(updates.emergencyContactName       ?? null); }
+  if ('emergencyContactPhone'     in updates) { sets.push(`emergency_contact_phone = $${i++}`);      params.push(updates.emergencyContactPhone      ?? null); }
+  if ('emergencyContactRelation'  in updates) { sets.push(`emergency_contact_relation = $${i++}`);   params.push(updates.emergencyContactRelation   ?? null); }
+  if ('occupation'                in updates) { sets.push(`occupation = $${i++}`);                   params.push(updates.occupation                 ?? null); }
+  if ('generalMedicalNotes'       in updates) { sets.push(`general_medical_notes = $${i++}`);        params.push(updates.generalMedicalNotes        ?? null); }
+  // Note: allergies is managed by rebuildAllergyString() — do not accept direct override
+
+  params.push(id);
   const rows = await query<any>(
-    `UPDATE patients SET
-       first_name = COALESCE($1, first_name),
-       last_name  = COALESCE($2, last_name),
-       date_of_birth = COALESCE($3, date_of_birth),
-       gender     = COALESCE($4, gender),
-       phone      = COALESCE($5, phone),
-       alternate_phone = COALESCE($6, alternate_phone),
-       email      = COALESCE($7, email),
-       address    = COALESCE($8, address),
-       emergency_contact_name  = COALESCE($9,  emergency_contact_name),
-       emergency_contact_phone = COALESCE($10, emergency_contact_phone),
-       emergency_contact_relation = COALESCE($11, emergency_contact_relation),
-       blood_group = COALESCE($12, blood_group),
-       occupation  = COALESCE($13, occupation),
-       allergies   = COALESCE($14, allergies),
-       general_medical_notes = COALESCE($15, general_medical_notes),
-       status      = COALESCE($16, status),
-       updated_at  = NOW()
-     WHERE id = $17 RETURNING *`,
-    [updates.firstName ?? null, updates.lastName ?? null, updates.dateOfBirth ?? null,
-     updates.gender ?? null, updates.phone ?? null, updates.alternatePhone ?? null,
-     updates.email ?? null, updates.address ?? null,
-     updates.emergencyContactName ?? null, updates.emergencyContactPhone ?? null,
-     updates.emergencyContactRelation ?? null, updates.bloodGroup ?? null,
-     updates.occupation ?? null, updates.allergies ?? null,
-     updates.generalMedicalNotes ?? null, updates.status ?? null, id]
+    `UPDATE patients SET ${sets.join(', ')} WHERE id = $${i} RETURNING *`,
+    params
   );
   if (!rows[0]) return null;
   const updated = mapPatient(rows[0]);
-  await logAudit({ userId: actorId, userName: actorName, userRole: 'RECEPTIONIST', action: 'PATIENT_UPDATED', entityType: 'PATIENT', entityId: id, entityName: `${updated.firstName} ${updated.lastName}` });
+  await logAudit({
+    userId: actorId, userName: actorName, userRole: 'RECEPTIONIST',
+    action: 'PATIENT_UPDATED', entityType: 'PATIENT',
+    entityId: id, entityName: `${updated.firstName} ${updated.lastName}`,
+    ipAddress,
+  });
   return updated;
 }
 

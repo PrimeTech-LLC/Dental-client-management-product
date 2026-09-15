@@ -88,7 +88,8 @@ export const ReceptionistDashboard: React.FC<ReceptionistDashboardProps> = ({
       const updated = await api.updateAppointmentStatus(apptId, newStatus);
       setAppointments(prev => prev.map(a => a.id === apptId ? updated : a));
     } catch (err: any) {
-      alert(`Error updating status: ${err.message}`);
+      // surface inline in the future; for now log to console — never block UI with alert()
+      console.error(`Error updating appointment status: ${err.message}`);
     }
   };
 
@@ -130,7 +131,22 @@ export const ReceptionistDashboard: React.FC<ReceptionistDashboardProps> = ({
           <p className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-1">Waiting Patients</p>
           <div className="flex items-baseline gap-2">
             <span className="text-2xl font-bold text-slate-900">{waitingPatients.length}</span>
-            <span className="text-xs text-orange-600 font-medium">Est. wait 15m</span>
+            {/* UX-03: calculate estimated wait dynamically from actual queue and average duration */}
+            {waitingPatients.length > 0 ? (() => {
+              const avgDuration = appointments.length > 0
+                ? Math.round(appointments.reduce((sum, a) => sum + (a.durationMinutes || 30), 0) / appointments.length)
+                : 30;
+              const estWaitMins = waitingPatients.length * avgDuration;
+              return (
+                <span className="text-xs text-orange-600 font-medium">
+                  Est. wait {estWaitMins >= 60
+                    ? `${Math.floor(estWaitMins / 60)}h ${estWaitMins % 60}m`
+                    : `${estWaitMins}m`}
+                </span>
+              );
+            })() : (
+              <span className="text-xs text-slate-400 font-medium">No queue</span>
+            )}
           </div>
         </div>
 
@@ -406,7 +422,7 @@ export const ReceptionistDashboard: React.FC<ReceptionistDashboardProps> = ({
             </div>
 
             <div className="space-y-4">
-              {doctors.map((doc, idx) => {
+              {doctors.map((doc) => {
                 const docAppts = appointments.filter(a => a.doctorId === doc.id);
                 const inSession = docAppts.find(a => a.status === 'IN_PROGRESS');
                 const nextAppt = docAppts.find(a => a.status === 'SCHEDULED' || a.status === 'CONFIRMED' || a.status === 'ARRIVED');
@@ -444,8 +460,10 @@ export const ReceptionistDashboard: React.FC<ReceptionistDashboardProps> = ({
                           {formatTime(inSession.startTime)} Session
                         </span>
                       ) : (
+                        // BUG-11: removed hardcoded "Room 0X" which cycled on index and
+                        // was meaningless. Show the next scheduled appointment time instead.
                         <span className="text-[10px] bg-slate-100 px-2 py-0.5 rounded text-slate-600 font-medium">
-                          {`Room 0${(idx % 4) + 1}`}
+                          {nextAppt ? `Next: ${formatTime(nextAppt.startTime)}` : 'Available'}
                         </span>
                       )}
                     </div>

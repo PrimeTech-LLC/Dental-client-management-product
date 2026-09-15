@@ -124,12 +124,16 @@ export default function App() {
     setIsDetailOpen(true);
   }, []);
 
+  // ── Status update error state (BUG-03: replaces bare alert()) ──────────────
+  const [statusError, setStatusError] = useState<string | null>(null);
+
   const handleUpdateAppointmentStatus = useCallback(async (appointmentId: string, newStatus: string) => {
     try {
+      setStatusError(null);
       const updated = await api.updateAppointmentStatus(appointmentId, newStatus);
       setDetailAppointment(prev => (prev?.id === appointmentId ? updated : prev));
     } catch (err: any) {
-      alert(`Failed to update status: ${err.message}`);
+      setStatusError(err.message || 'Failed to update appointment status.');
     }
   }, []);
 
@@ -289,7 +293,9 @@ export default function App() {
         <AppointmentDetailModal
           isOpen={isDetailOpen}
           appointment={detailAppointment}
-          onClose={() => { setIsDetailOpen(false); setDetailAppointment(null); }}
+          statusError={statusError}
+          onClearStatusError={() => setStatusError(null)}
+          onClose={() => { setIsDetailOpen(false); setDetailAppointment(null); setStatusError(null); }}
           onSelectPatient={(ptId) => {
             setIsDetailOpen(false);
             setDetailAppointment(null);

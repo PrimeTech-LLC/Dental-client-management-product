@@ -24,12 +24,15 @@ export const RescheduleModal: React.FC<RescheduleModalProps> = ({
   const [allowOverride, setAllowOverride] = useState(false);
   const [conflictResult, setConflictResult] = useState<ConflictCheckResult | null>(null);
   const [submitting, setSubmitting] = useState(false);
+  // BUG-02: inline error replaces bare alert()
+  const [submitError, setSubmitError] = useState('');
 
   useEffect(() => {
     if (appointment) {
       setNewDate(appointment.appointmentDate);
       setNewStartTime(appointment.startTime);
       setAllowOverride(false);
+      setSubmitError('');
     }
   }, [appointment, isOpen]);
 
@@ -44,9 +47,10 @@ export const RescheduleModal: React.FC<RescheduleModalProps> = ({
   };
   const newEndTime = calculateEndTime(newStartTime, duration);
 
-  // Check Conflict in real-time
+  // Check Conflict in real-time — debounced at 500ms
   useEffect(() => {
     if (!appointment || !newDate || !newStartTime) return;
+    setSubmitError('');
 
     const timer = setTimeout(async () => {
       try {
@@ -62,7 +66,7 @@ export const RescheduleModal: React.FC<RescheduleModalProps> = ({
       } catch (err) {
         console.error('Error checking conflict:', err);
       }
-    }, 150);
+    }, 500);
 
     return () => clearTimeout(timer);
   }, [appointment, newDate, newStartTime, newEndTime]);
@@ -71,8 +75,11 @@ export const RescheduleModal: React.FC<RescheduleModalProps> = ({
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    setSubmitError('');
+
+    // BUG-02: show conflict inline rather than calling alert()
     if (conflictResult?.hasConflict && !allowOverride) {
-      alert(`Cannot reschedule due to conflict: ${conflictResult.conflictReason}`);
+      setSubmitError(`Schedule conflict: ${conflictResult.conflictReason}. Check "Authorized Override" to proceed anyway.`);
       return;
     }
 
@@ -88,7 +95,8 @@ export const RescheduleModal: React.FC<RescheduleModalProps> = ({
       onSuccess();
       onClose();
     } catch (err: any) {
-      alert(err.message || 'Failed to reschedule appointment');
+      // BUG-02: show server error inline rather than calling alert()
+      setSubmitError(err.message || 'Failed to reschedule appointment. Please try again.');
     } finally {
       setSubmitting(false);
     }
@@ -211,21 +219,30 @@ export const RescheduleModal: React.FC<RescheduleModalProps> = ({
           </div>
 
           {/* Actions */}
-          <div className="pt-3 border-t border-slate-200 flex items-center justify-end gap-2.5">
-            <button
-              type="button"
-              onClick={onClose}
-              className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg text-xs font-medium"
-            >
-              Cancel
-            </button>
-            <button
-              type="submit"
-              disabled={submitting || (conflictResult?.hasConflict && !allowOverride)}
-              className="px-5 py-2 bg-teal-600 hover:bg-teal-700 disabled:opacity-50 text-white rounded-lg text-xs font-medium shadow-xs"
-            >
-              {submitting ? 'Updating...' : 'Confirm Reschedule'}
-            </button>
+          <div className="pt-3 border-t border-slate-200 space-y-2.5">
+            {/* BUG-02: inline error display replaces bare alert() */}
+            {submitError && (
+              <div className="p-3 rounded-lg bg-rose-50 border border-rose-300 text-rose-900 text-xs flex items-start gap-2">
+                <AlertTriangle className="w-4 h-4 text-rose-600 shrink-0 mt-0.5" />
+                <span>{submitError}</span>
+              </div>
+            )}
+            <div className="flex items-center justify-end gap-2.5">
+              <button
+                type="button"
+                onClick={onClose}
+                className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg text-xs font-medium"
+              >
+                Cancel
+              </button>
+              <button
+                type="submit"
+                disabled={submitting || (conflictResult?.hasConflict && !allowOverride)}
+                className="px-5 py-2 bg-teal-600 hover:bg-teal-700 disabled:opacity-50 text-white rounded-lg text-xs font-medium shadow-xs"
+              >
+                {submitting ? 'Updating...' : 'Confirm Reschedule'}
+              </button>
+            </div>
           </div>
         </form>
       </div>

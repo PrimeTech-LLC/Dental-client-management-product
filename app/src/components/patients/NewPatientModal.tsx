@@ -37,6 +37,8 @@ export const NewPatientModal: React.FC<NewPatientModalProps> = ({
   // Duplicate Check
   const [duplicates, setDuplicates] = useState<Patient[]>([]);
   const [submitting, setSubmitting] = useState(false);
+  // Inline form error — replaces bare alert() calls
+  const [formError, setFormError] = useState('');
 
   // Live duplicate checking
   useEffect(() => {
@@ -61,13 +63,18 @@ export const NewPatientModal: React.FC<NewPatientModalProps> = ({
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    setFormError('');
     if (!firstName || !lastName || !phone) {
-      alert('First Name, Last Name, and Phone number are required.');
+      setFormError('First Name, Last Name, and Phone number are required.');
       return;
     }
 
     try {
       setSubmitting(true);
+      // BUG-05: Do NOT pass allergies inside createPatient — the server's
+      // addAllergy() call below will trigger rebuildAllergyString() which
+      // syncs patients.allergies automatically. Passing it here too would
+      // produce a duplicated allergy string on the patient record.
       const patient = await api.createPatient({
         firstName,
         lastName,
@@ -80,11 +87,11 @@ export const NewPatientModal: React.FC<NewPatientModalProps> = ({
         bloodGroup,
         emergencyContactName: emergencyContactName || undefined,
         emergencyContactPhone: emergencyContactPhone || undefined,
-        allergies: allergies || undefined,
+        // allergies deliberately omitted — handled via addAllergy() below
         generalMedicalNotes: medicalNotes || undefined
       });
 
-      // If medical conditions were added, add to medical history
+      // If medical notes provided, also create a structured medical history entry
       if (medicalNotes) {
         await api.addMedicalHistory(patient.id, {
           condition: 'Initial Intake Notes',
@@ -93,7 +100,8 @@ export const NewPatientModal: React.FC<NewPatientModalProps> = ({
         });
       }
 
-      // If allergy added, add to allergies table
+      // If allergy provided, add to the structured allergies table.
+      // The server will call rebuildAllergyString() which populates patients.allergies.
       if (allergies) {
         await api.addAllergy(patient.id, {
           allergen: allergies,
@@ -105,7 +113,7 @@ export const NewPatientModal: React.FC<NewPatientModalProps> = ({
       onSuccess(patient);
       onClose();
     } catch (err: any) {
-      alert(err.message || 'Failed to register patient');
+      setFormError(err.message || 'Failed to register patient. Please try again.');
     } finally {
       setSubmitting(false);
     }
@@ -372,21 +380,31 @@ export const NewPatientModal: React.FC<NewPatientModalProps> = ({
           </div>
 
           {/* Footer Actions */}
-          <div className="pt-4 border-t border-slate-200 flex items-center justify-end gap-2.5">
-            <button
-              type="button"
-              onClick={onClose}
-              className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg text-xs font-medium"
-            >
-              Cancel
-            </button>
-            <button
-              type="submit"
-              disabled={submitting}
-              className="px-5 py-2 bg-teal-600 hover:bg-teal-700 disabled:opacity-50 text-white rounded-lg text-xs font-medium shadow-xs flex items-center gap-1.5"
-            >
-              {submitting ? 'Creating Patient...' : 'Register Patient'}
-            </button>
+          <div className="pt-4 border-t border-slate-200 space-y-2.5">
+            {formError && (
+              <div className="p-3 rounded-lg bg-rose-50 border border-rose-300 text-rose-900 text-xs flex items-start gap-2">
+                <svg className="w-4 h-4 text-rose-600 shrink-0 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+                <span>{formError}</span>
+              </div>
+            )}
+            <div className="flex items-center justify-end gap-2.5">
+              <button
+                type="button"
+                onClick={onClose}
+                className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg text-xs font-medium"
+              >
+                Cancel
+              </button>
+              <button
+                type="submit"
+                disabled={submitting}
+                className="px-5 py-2 bg-teal-600 hover:bg-teal-700 disabled:opacity-50 text-white rounded-lg text-xs font-medium shadow-xs flex items-center gap-1.5"
+              >
+                {submitting ? 'Creating Patient...' : 'Register Patient'}
+              </button>
+            </div>
           </div>
         </form>
       </div>
