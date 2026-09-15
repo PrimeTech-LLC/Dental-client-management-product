@@ -187,44 +187,69 @@ export const PatientProfileView: React.FC<PatientProfileViewProps> = ({
 
   // ── Tooth chart ──────────────────────────────────────────────
   const handleUpdateToothCondition = async (toothNumber: number, condition: ToothCondition, notes?: string) => {
-    await api.updateToothCondition(patientId, toothNumber, condition, notes);
-    await loadPatientData();
+    const updated = await api.updateToothCondition(patientId, toothNumber, condition, notes);
+    // Optimistic update: replace or add the entry in dentalHistory
+    setPatient((prev: any) => {
+      if (!prev) return prev;
+      const exists = prev.dentalHistory?.some((d: any) => d.toothNumber === toothNumber);
+      const newHistory = exists
+        ? prev.dentalHistory.map((d: any) => d.toothNumber === toothNumber ? updated : d)
+        : [...(prev.dentalHistory || []), updated];
+      return { ...prev, dentalHistory: newHistory };
+    });
   };
 
   // ── Medical History ──────────────────────────────────────────
   const handleAddMedicalHistory = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!newConditionName) return;
-    await api.addMedicalHistory(patientId, {
+    const newItem = await api.addMedicalHistory(patientId, {
       condition: newConditionName,
       notes: newConditionNotes,
       diagnosedAt: new Date().toISOString().split('T')[0],
     });
+    // Optimistic update
+    setPatient((prev: any) => prev ? ({
+      ...prev,
+      medicalHistory: [newItem, ...(prev.medicalHistory || [])],
+    }) : prev);
     setNewConditionName('');
     setNewConditionNotes('');
     setShowAddMedicalModal(false);
-    await loadPatientData();
   };
 
   // ── Allergies ────────────────────────────────────────────────
   const handleAddAllergy = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!newAllergen) return;
-    await api.addAllergy(patientId, {
+    const newItem = await api.addAllergy(patientId, {
       allergen: newAllergen,
       severity: newAllergySeverity,
       reaction: newAllergyReaction,
     });
+    // Optimistic update — also rebuild the summary allergy string for the banner
+    setPatient((prev: any) => {
+      if (!prev) return prev;
+      const allergyList = [...(prev.allergyList || []), newItem];
+      const allergies = allergyList.map((a: any) => `${a.allergen} (${a.severity})`).join(', ');
+      return { ...prev, allergyList, allergies };
+    });
     setNewAllergen('');
     setNewAllergyReaction('');
     setShowAddAllergyModal(false);
-    await loadPatientData();
   };
 
   const handleDeleteAllergy = async (allergyId: string) => {
-    // UX-02: replaced window.confirm with a ConfirmDialog in the JSX below
     await api.deleteAllergy(allergyId);
-    await loadPatientData();
+    // Optimistic update
+    setPatient((prev: any) => {
+      if (!prev) return prev;
+      const allergyList = (prev.allergyList || []).filter((a: any) => a.id !== allergyId);
+      const allergies = allergyList.length
+        ? allergyList.map((a: any) => `${a.allergen} (${a.severity})`).join(', ')
+        : null;
+      return { ...prev, allergyList, allergies };
+    });
   };
   // ── Treatment ────────────────────────────────────────────────
   const handleAddTreatment = async (e: React.FormEvent) => {
@@ -232,7 +257,7 @@ export const PatientProfileView: React.FC<PatientProfileViewProps> = ({
     // BUG-01: use the selected doctor from the form, not always the first one
     const doctorId = newTreatmentDoctorId || availableDoctors[0]?.id || '';
     if (!doctorId) return;
-    await api.createTreatment({
+    const newTreatment = await api.createTreatment({
       patientId,
       doctorId,
       treatmentName: newTreatmentName,
@@ -241,12 +266,16 @@ export const PatientProfileView: React.FC<PatientProfileViewProps> = ({
       notes: newTreatmentNotes,
       status: 'PLANNED',
     });
+    // Optimistic update — prepend to list
+    setPatient((prev: any) => prev ? ({
+      ...prev,
+      treatments: [newTreatment, ...(prev.treatments || [])],
+    }) : prev);
     setShowAddTreatmentModal(false);
     setNewTreatmentName('Dental Composite Restoration');
     setNewToothNumber(undefined);
     setNewTreatmentCost(150);
     setNewTreatmentNotes('');
-    await loadPatientData();
   };
 
   // ── Visit ────────────────────────────────────────────────────
@@ -255,7 +284,7 @@ export const PatientProfileView: React.FC<PatientProfileViewProps> = ({
     // BUG-01: use the selected doctor from the form, not always the first one
     const doctorId = newVisitDoctorId || availableDoctors[0]?.id || '';
     if (!doctorId) return;
-    await api.createVisit({
+    const newVisit = await api.createVisit({
       patientId,
       doctorId,
       visitDate: new Date().toISOString().split('T')[0],
@@ -263,11 +292,15 @@ export const PatientProfileView: React.FC<PatientProfileViewProps> = ({
       clinicalNotes: newVisitClinicalNotes,
       diagnosis: newVisitDiagnosis,
     });
+    // Optimistic update — prepend to list
+    setPatient((prev: any) => prev ? ({
+      ...prev,
+      visits: [newVisit, ...(prev.visits || [])],
+    }) : prev);
     setShowAddVisitModal(false);
     setNewVisitChiefComplaint('');
     setNewVisitClinicalNotes('');
     setNewVisitDiagnosis('');
-    await loadPatientData();
   };
 
   if (loading || !patient) {

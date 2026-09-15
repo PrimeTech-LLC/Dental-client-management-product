@@ -1,5 +1,5 @@
 -- =============================================================
--- Apex Dental Clinic Management System — Neon Postgres Schema
+-- MDS Clinic (Mehmood Dental Surgeon) — Neon Postgres Schema
 -- Run via: node scripts/migrate.js
 -- =============================================================
 

@@ -24,16 +24,46 @@ export const GlobalSearchModal: React.FC<GlobalSearchModalProps> = ({
   const [doctors, setDoctors] = useState<Doctor[]>([]);
   const inputRef = useRef<HTMLInputElement>(null);
 
+  // Finding 10: cache the appointment + doctor window fetched once on modal open
+  // so every keystroke doesn't re-fetch the full 44-day list from the server.
+  const apptsCacheRef = useRef<Appointment[]>([]);
+  const doctorsCacheRef = useRef<Doctor[]>([]);
+  const cacheLoadedRef = useRef(false);
+
   useEffect(() => {
     if (isOpen) {
       setTimeout(() => inputRef.current?.focus(), 50);
       setQuery('');
       setPatients([]);
       setAppointments([]);
+      setDoctors([]);
+
+      // Finding 10: pre-fetch appointments + doctors once when modal opens.
+      // Subsequent keystrokes filter from this in-memory cache instead of
+      // hitting the server on every debounce tick.
+      if (!cacheLoadedRef.current) {
+        const past   = new Date(Date.now() - 30 * 86400000).toISOString().slice(0, 10);
+        const future = new Date(Date.now() + 14 * 86400000).toISOString().slice(0, 10);
+        Promise.all([
+          api.getAppointments({ startDate: past, endDate: future }),
+          api.getDoctors(),
+        ]).then(([appts, docs]) => {
+          apptsCacheRef.current = appts;
+          doctorsCacheRef.current = docs;
+          cacheLoadedRef.current = true;
+        }).catch(() => {});
+      }
+    } else {
+      // Invalidate cache when modal closes so next open gets fresh data
+      cacheLoadedRef.current = false;
+      apptsCacheRef.current = [];
+      doctorsCacheRef.current = [];
     }
   }, [isOpen]);
 
-  // Debounced search
+  // Finding 10: Debounced search — patients are still fetched (server-side
+  // search is efficient). Appointments and doctors are filtered from the
+  // in-memory cache populated when the modal opened.
   useEffect(() => {
     if (!query.trim()) {
       setPatients([]);
@@ -45,21 +75,14 @@ export const GlobalSearchModal: React.FC<GlobalSearchModalProps> = ({
     const timer = setTimeout(async () => {
       setLoading(true);
       try {
-        const today = new Date().toISOString().slice(0, 10);
-        const past  = new Date(Date.now() - 30 * 86400000).toISOString().slice(0, 10);
-        const future = new Date(Date.now() + 14 * 86400000).toISOString().slice(0, 10);
-
-        const [patientsRes, apptsRes, docsRes] = await Promise.all([
-          api.getPatients(query, 5),
-          api.getAppointments({ startDate: past, endDate: future }),
-          api.getDoctors()
-        ]);
-
+        // Patients: server-side search (efficient, indexed)
+        const patientsRes = await api.getPatients(query, 5);
         setPatients(patientsRes.patients);
 
-        // Filter appointments by patient name or doctor
+        // Appointments + doctors: filter from in-memory cache
         const q = query.toLowerCase();
-        const filteredAppts = apptsRes.filter(a =>
+
+        const filteredAppts = apptsCacheRef.current.filter(a =>
           a.patient?.firstName.toLowerCase().includes(q) ||
           a.patient?.lastName.toLowerCase().includes(q) ||
           a.patient?.patientNumber.toLowerCase().includes(q) ||
@@ -68,8 +91,7 @@ export const GlobalSearchModal: React.FC<GlobalSearchModalProps> = ({
         ).slice(0, 5);
         setAppointments(filteredAppts);
 
-        // Filter doctors
-        const filteredDocs = docsRes.filter(d =>
+        const filteredDocs = doctorsCacheRef.current.filter(d =>
           d.fullName.toLowerCase().includes(q) ||
           d.specialization.toLowerCase().includes(q) ||
           d.licenseNumber.toLowerCase().includes(q)

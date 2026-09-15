@@ -15,6 +15,8 @@ export const ReportsHub: React.FC = () => {
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const loadReports = async (sd: string, ed: string) => {
+    // Finding 9: skip fetch if the range is inverted
+    if (sd > ed) return;
     try {
       setLoading(true);
       const data = await api.getReports(sd, ed);
@@ -115,6 +117,16 @@ export const ReportsHub: React.FC = () => {
           />
         </div>
       </div>
+
+      {/* Finding 9: invalid date range warning */}
+      {startDate > endDate && (
+        <div className="bg-rose-50 border border-rose-300 text-rose-800 rounded-xl px-4 py-3 text-xs font-medium flex items-center gap-2">
+          <svg className="w-4 h-4 text-rose-500 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+            <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+          </svg>
+          <span>"From" date must be before the "To" date. No data will be shown for an invalid range.</span>
+        </div>
+      )}
 
       {/* Reports Metrics Summary */}
       {reports && (

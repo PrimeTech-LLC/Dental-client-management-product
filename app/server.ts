@@ -15,16 +15,16 @@ const __dirname  = path.dirname(__filename);
 const IS_PROD    = process.env.NODE_ENV === 'production';
 const JWT_SECRET = process.env.JWT_SECRET ?? (IS_PROD
   ? (() => { console.error('FATAL: JWT_SECRET must be set in production. Refusing to start.'); process.exit(1); })()!
-  : 'apex-dental-dev-secret-change-me');
+  : 'mds-clinic-dev-secret-change-me');
 
 const JWT_EXPIRY = '12h';
 const API_PORT   = IS_PROD ? (Number(process.env.PORT) || 3000) : 3001;
 
 // ─── IP extraction helper ─────────────────────────────────────────────────────
+// With `trust proxy` enabled in production, Express sets req.ip to the correct
+// client IP after stripping trusted proxy hops from X-Forwarded-For.
 function getClientIp(req: express.Request): string {
-  return (req.headers['x-forwarded-for'] as string)?.split(',')[0]?.trim()
-    ?? req.socket.remoteAddress
-    ?? 'unknown';
+  return req.ip ?? req.socket.remoteAddress ?? 'unknown';
 }
 
 // ─── Auth helpers ─────────────────────────────────────────────────────────────
@@ -105,9 +105,7 @@ function loginRateLimiter(
   res: express.Response,
   next: express.NextFunction
 ) {
-  const ip = (req.headers['x-forwarded-for'] as string)?.split(',')[0]?.trim()
-    ?? req.socket.remoteAddress
-    ?? 'unknown';
+  const ip = req.ip ?? req.socket.remoteAddress ?? 'unknown';
 
   const now = Date.now();
   const entry = loginAttempts.get(ip);
@@ -197,6 +195,12 @@ function handleValidationError(err: any, res: express.Response) {
 // ─── App setup ────────────────────────────────────────────────────────────────
 
 const app = express();
+
+// Finding 7: Trust the first proxy in production so req.ip resolves correctly
+// and X-Forwarded-For cannot be forged by clients to bypass rate limiting.
+if (IS_PROD) {
+  app.set('trust proxy', 1);
+}
 
 // Limit JSON body to 1 MB to prevent payload attacks
 app.use(express.json({ limit: '1mb' }));
@@ -810,8 +814,8 @@ app.put('/api/settings', requireRole('ADMIN', 'RECEPTIONIST'), async (req, res) 
 });
 
 // ─── Audit Logs ───────────────────────────────────────────────────────────────
-
-app.get('/api/audit-logs', async (req, res) => {
+// Finding 6: restrict to ADMIN role — receptionists must not read the full trail
+app.get('/api/audit-logs', requireRole('ADMIN'), async (req, res) => {
   try {
     const limit      = Math.min(parseInt(req.query.limit as string) || 100, 500);
     const entityType = req.query.entityType as string | undefined;
@@ -845,7 +849,7 @@ if (IS_PROD) {
 // ─── Start ────────────────────────────────────────────────────────────────────
 
 app.listen(API_PORT, () => {
-  console.log(`🦷  Apex Dental API → http://localhost:${API_PORT}`);
+  console.log(`🦷  MDS Clinic API → http://localhost:${API_PORT}`);
   console.log(`   Mode: ${IS_PROD ? 'production' : 'development (Vite proxies /api from :3000)'}`);
 });
 

@@ -124,6 +124,10 @@ export default function App() {
     setIsDetailOpen(true);
   }, []);
 
+  // ── appointmentRefreshKey: incremented after a successful booking so
+  //    AppointmentsHub re-fetches without a full page reload (Finding 3)
+  const [appointmentRefreshKey, setAppointmentRefreshKey] = useState(0);
+
   // ── Status update error state (BUG-03: replaces bare alert()) ──────────────
   const [statusError, setStatusError] = useState<string | null>(null);
 
@@ -223,6 +227,7 @@ export default function App() {
               onRescheduleAppointment={handleOpenReschedule}
               onOpenPrintCenter={(docType, appt) => handleOpenPrintCenter(docType, appt)}
               onSelectPatient={handleSelectPatient}
+              refreshKey={appointmentRefreshKey}
             />
           )}
 
@@ -274,7 +279,10 @@ export default function App() {
       <NewAppointmentModal
         isOpen={isNewAppointmentOpen}
         onClose={() => setIsNewAppointmentOpen(false)}
-        onSuccess={() => setIsNewAppointmentOpen(false)}
+        onSuccess={() => {
+          setIsNewAppointmentOpen(false);
+          setAppointmentRefreshKey(k => k + 1);
+        }}
         initialPatientId={newApptInitialPatientId}
         initialDoctorId={newApptInitialDoctorId}
         initialDate={newApptInitialDate}

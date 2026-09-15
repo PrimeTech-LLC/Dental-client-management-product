@@ -31,6 +31,7 @@ export const DoctorsHub: React.FC = () => {
   const [formEmail, setFormEmail] = useState('');
   const [formColor, setFormColor] = useState(DOCTOR_DEFAULT_COLOR);
   const [formActive, setFormActive] = useState(true);
+  const [doctorModalError, setDoctorModalError] = useState('');
 
   // Exception Form
   const [showExceptionModal, setShowExceptionModal] = useState(false);
@@ -79,6 +80,7 @@ export const DoctorsHub: React.FC = () => {
     setFormEmail('');
     setFormColor(DOCTOR_DEFAULT_COLOR);
     setFormActive(true);
+    setDoctorModalError('');
     setShowDoctorModal(true);
   };
 
@@ -92,12 +94,14 @@ export const DoctorsHub: React.FC = () => {
     setFormEmail(doc.email);
     setFormColor(doc.color);
     setFormActive(doc.isActive);
+    setDoctorModalError('');
     setShowDoctorModal(true);
   };
 
   // Save Doctor
   const handleSaveDoctor = async (e: React.FormEvent) => {
     e.preventDefault();
+    setDoctorModalError('');
     try {
       if (editingDoctorId) {
         await api.updateDoctor(editingDoctorId, {
@@ -123,7 +127,12 @@ export const DoctorsHub: React.FC = () => {
       setShowDoctorModal(false);
       await loadDoctors();
     } catch (err: any) {
-      alert(`Error saving doctor: ${err.message}`);
+      const isDupe = err.message?.includes('unique') || err.message?.includes('duplicate');
+      setDoctorModalError(
+        isDupe
+          ? 'A doctor with this license number already exists.'
+          : 'Failed to save doctor. Please try again.'
+      );
     }
   };
 
@@ -535,6 +544,12 @@ export const DoctorsHub: React.FC = () => {
               />
               <span>Doctor is Active on Clinical Schedule</span>
             </label>
+
+            {doctorModalError && (
+              <div className="p-2.5 bg-rose-50 border border-rose-200 rounded-lg text-rose-800 text-xs">
+                {doctorModalError}
+              </div>
+            )}
 
             <div className="flex justify-end gap-2 pt-2 border-t border-slate-100">
               <button type="button" onClick={() => setShowDoctorModal(false)} className="px-3 py-1.5 bg-slate-100 rounded text-slate-700">Cancel</button>

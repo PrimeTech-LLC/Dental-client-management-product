@@ -21,6 +21,7 @@ export const DentalChart: React.FC<DentalChartProps> = ({
   const [selectedCondition, setSelectedCondition] = useState<ToothCondition>('HEALTHY');
   const [toothNotes, setToothNotes] = useState('');
   const [isUpdating, setIsUpdating] = useState(false);
+  const [saveError, setSaveError] = useState('');
 
   // Upper Arch (1 to 16) and Lower Arch (17 to 32)
   const upperArch = Array.from({ length: 16 }, (_, i) => i + 1);
@@ -37,16 +38,18 @@ export const DentalChart: React.FC<DentalChartProps> = ({
     setSelectedTooth(num);
     setSelectedCondition(existing?.condition || 'HEALTHY');
     setToothNotes(existing?.notes || '');
+    setSaveError('');
   };
 
   const handleSaveCondition = async () => {
     if (!selectedTooth) return;
+    setSaveError('');
     try {
       setIsUpdating(true);
       await onUpdateToothCondition(selectedTooth, selectedCondition, toothNotes);
       setSelectedTooth(null);
     } catch (err: any) {
-      alert(`Failed to update tooth: ${err.message}`);
+      setSaveError(err.message || 'Failed to update tooth condition. Please try again.');
     } finally {
       setIsUpdating(false);
     }
@@ -203,6 +206,12 @@ export const DentalChart: React.FC<DentalChartProps> = ({
               />
             </div>
           </div>
+
+          {saveError && (
+            <div className="p-2.5 bg-rose-900/60 border border-rose-600 rounded-lg text-rose-200 text-xs">
+              {saveError}
+            </div>
+          )}
 
           <div className="flex justify-end gap-2 pt-1">
             <button

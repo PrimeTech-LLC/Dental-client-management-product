@@ -171,7 +171,7 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLogin }) => {
             </svg>
           </div>
           <h1 className="text-2xl font-black text-slate-900 tracking-tight">
-            {clinicName || 'Dental Clinic'}
+            {clinicName || 'MDS Clinic'}
           </h1>
           <p className="text-xs text-slate-500 font-medium">
             {clinicTagline || 'Receptionist Management System'}
@@ -253,7 +253,7 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLogin }) => {
         </div>
 
         <p className="text-center text-[11px] text-slate-400">
-          {clinicName || 'Dental Clinic'} · Secure Internal System
+          {clinicName || 'MDS Clinic'} · Secure Internal System
         </p>
       </div>
     </div>
