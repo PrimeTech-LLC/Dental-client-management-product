@@ -81,13 +81,13 @@ async function run() {
 
     // ── Receptionist accounts ────────────────────────────────────
     // Passwords hashed with pgcrypto crypt() / blowfish.
-    // Default password: dental123  — change after first login.
+    // Default password: dental123  — staff MUST change on first login (must_change_password = true).
     await client.query(`
-      INSERT INTO users (name, email, role, password_hash, is_active)
+      INSERT INTO users (name, email, role, password_hash, is_active, must_change_password)
       VALUES
-        ('Saad',  'saad@clinic.local',  'RECEPTIONIST', crypt('dental123', gen_salt('bf')), true),
-        ('Ather', 'ather@clinic.local', 'RECEPTIONIST', crypt('dental123', gen_salt('bf')), true),
-        ('Ali',   'ali@clinic.local',   'RECEPTIONIST', crypt('dental123', gen_salt('bf')), true)
+        ('Saad',  'saad@clinic.local',  'RECEPTIONIST', crypt('dental123', gen_salt('bf')), true, true),
+        ('Ather', 'ather@clinic.local', 'RECEPTIONIST', crypt('dental123', gen_salt('bf')), true, true),
+        ('Ali',   'ali@clinic.local',   'RECEPTIONIST', crypt('dental123', gen_salt('bf')), true, true)
     `);
 
     // ── Blank clinic settings (already inserted by schema DEFAULT row) ──

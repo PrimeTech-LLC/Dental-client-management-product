@@ -1,5 +1,6 @@
 import 'dotenv/config';
 import express from 'express';
+import helmet from 'helmet';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import cookieParser from 'cookie-parser';
@@ -42,7 +43,7 @@ function setAuthCookie(res: express.Response, token: string) {
   res.cookie('auth_token', token, {
     httpOnly: true,
     secure: IS_PROD,
-    sameSite: 'lax',
+    sameSite: 'strict',
     maxAge: 12 * 60 * 60 * 1000,
     path: '/',
   });
@@ -196,11 +197,66 @@ function handleValidationError(err: any, res: express.Response) {
 
 const app = express();
 
-// Finding 7: Trust the first proxy in production so req.ip resolves correctly
+// Trust the first proxy in production so req.ip resolves correctly
 // and X-Forwarded-For cannot be forged by clients to bypass rate limiting.
 if (IS_PROD) {
   app.set('trust proxy', 1);
 }
+
+// ─── SEC-01: HTTP security headers via helmet ─────────────────────────────────
+// Applied before all routes so every response — including errors — gets headers.
+app.use(helmet({
+  contentSecurityPolicy: {
+    directives: {
+      defaultSrc:  ["'self'"],
+      scriptSrc:   ["'self'"],
+      // Tailwind v4 uses inline styles for utilities; unsafe-inline is needed until
+      // a nonce-based CSP approach is implemented.
+      styleSrc:    ["'self'", "'unsafe-inline'"],
+      imgSrc:      ["'self'", "data:"],
+      connectSrc:  ["'self'"],
+      fontSrc:     ["'self'"],
+      frameSrc:    ["'none'"],
+      objectSrc:   ["'none'"],
+      baseUri:     ["'self'"],
+      formAction:  ["'self'"],
+    },
+  },
+  crossOriginEmbedderPolicy: false, // required for Vite HMR in dev
+  hsts: IS_PROD ? { maxAge: 31_536_000, includeSubDomains: true, preload: true } : false,
+  referrerPolicy: { policy: 'strict-origin-when-cross-origin' },
+}));
+
+// ─── SEC-CSRF: Validate Origin on all state-changing API requests ─────────────
+// sameSite:'strict' on the cookie + Origin header check gives double CSRF protection.
+const ALLOWED_ORIGINS = IS_PROD
+  ? [process.env.ALLOWED_ORIGIN ?? ''].filter(Boolean)
+  : ['http://localhost:3000', 'http://localhost:3001'];
+
+app.use((req, res, next) => {
+  if (['POST', 'PUT', 'DELETE', 'PATCH'].includes(req.method) && req.path.startsWith('/api/')) {
+    const origin = req.headers.origin ?? req.headers.referer ?? '';
+    const host   = req.headers.host ?? '';
+    // Allow same-origin requests (no Origin header = same-origin in most browsers)
+    // and explicitly allowed origins
+    const isSameHost  = !req.headers.origin || origin.includes(host.split(':')[0]);
+    const isAllowed   = ALLOWED_ORIGINS.some(o => origin.startsWith(o));
+    if (!isSameHost && !isAllowed && IS_PROD) {
+      return res.status(403).json({ success: false, error: { code: 'FORBIDDEN', message: 'Cross-origin request not allowed' } });
+    }
+  }
+  next();
+});
+
+// ─── Content-Type enforcement on API mutation routes ─────────────────────────
+app.use((req, res, next) => {
+  if (['POST', 'PUT', 'PATCH'].includes(req.method) && req.path.startsWith('/api/') && req.headers['content-length'] !== '0') {
+    if (!req.is('application/json') && req.headers['content-length']) {
+      return res.status(415).json({ success: false, error: { code: 'UNSUPPORTED_MEDIA_TYPE', message: 'Content-Type must be application/json' } });
+    }
+  }
+  next();
+});
 
 // Limit JSON body to 1 MB to prevent payload attacks
 app.use(express.json({ limit: '1mb' }));
@@ -338,7 +394,7 @@ app.post('/api/users/receptionists', requireRole('ADMIN'), async (req, res) => {
       return res.status(400).json({ success: false, error: { message: 'Password must be at least 8 characters.' } });
     }
     const cu = currentUser(req);
-    const user = await db.createReceptionist({ name, email, password }, cu.id, cu.name);
+    const user = await db.createReceptionist({ name, email, password }, cu.id, cu.name, cu.role);
     res.status(201).json({ success: true, data: user });
   } catch (err: any) {
     const isDupe = err.message?.includes('unique') || err.message?.includes('duplicate');
@@ -349,7 +405,7 @@ app.post('/api/users/receptionists', requireRole('ADMIN'), async (req, res) => {
 app.put('/api/users/receptionists/:id', requireRole('ADMIN'), async (req, res) => {
   try {
     const cu = currentUser(req);
-    const updated = await db.updateReceptionist(req.params.id, req.body, cu.id, cu.name);
+    const updated = await db.updateReceptionist(req.params.id, req.body, cu.id, cu.name, cu.role);
     if (!updated) return res.status(404).json({ success: false, error: { code: 'NOT_FOUND', message: 'Receptionist not found' } });
     res.json({ success: true, data: updated });
   } catch (err: any) {
@@ -364,7 +420,7 @@ app.delete('/api/users/receptionists/:id', requireRole('ADMIN'), async (req, res
       return res.status(400).json({ success: false, error: { code: 'SELF_DELETE', message: 'You cannot delete your own account' } });
     }
     const cu = currentUser(req);
-    const deleted = await db.deleteReceptionist(req.params.id, cu.id, cu.name);
+    const deleted = await db.deleteReceptionist(req.params.id, cu.id, cu.name, cu.role);
     if (!deleted) return res.status(404).json({ success: false, error: { code: 'NOT_FOUND', message: 'Receptionist not found' } });
     res.json({ success: true });
   } catch (err: any) { res.status(500).json({ success: false, error: { message: err.message } }); }
@@ -404,7 +460,7 @@ app.post('/api/patients', async (req, res) => {
   try {
     validatePatientBody(req.body);
     const cu = currentUser(req);
-    const patient = await db.addPatient(req.body, cu.id, cu.name, getClientIp(req));
+    const patient = await db.addPatient(req.body, cu.id, cu.name, getClientIp(req), cu.role);
     res.status(201).json({ success: true, data: patient });
   } catch (err: any) {
     if (err.status === 400) return handleValidationError(err, res);
@@ -428,7 +484,7 @@ app.put('/api/patients/:id', async (req, res) => {
       occupation:               nullify(req.body.occupation),
       generalMedicalNotes:      nullify(req.body.generalMedicalNotes),
     };
-    const updated = await db.updatePatient(req.params.id, updates, cu.id, cu.name, getClientIp(req));
+    const updated = await db.updatePatient(req.params.id, updates, cu.id, cu.name, getClientIp(req), cu.role);
     if (!updated) return res.status(404).json({ success: false, error: { code: 'NOT_FOUND', message: 'Patient not found' } });
     res.json({ success: true, data: updated });
   } catch (err: any) { res.status(500).json({ success: false, error: { message: err.message } }); }
@@ -514,7 +570,7 @@ app.post('/api/doctors', async (req, res) => {
   try {
     validateDoctorBody(req.body);
     const cu = currentUser(req);
-    const doc = await db.addDoctor(req.body, cu.id, cu.name);
+    const doc = await db.addDoctor(req.body, cu.id, cu.name, cu.role);
     res.status(201).json({ success: true, data: doc });
   } catch (err: any) {
     if (err.status === 400) return handleValidationError(err, res);
@@ -525,7 +581,7 @@ app.post('/api/doctors', async (req, res) => {
 app.put('/api/doctors/:id', async (req, res) => {
   try {
     const cu = currentUser(req);
-    const updated = await db.updateDoctor(req.params.id, req.body, cu.id, cu.name);
+    const updated = await db.updateDoctor(req.params.id, req.body, cu.id, cu.name, cu.role);
     if (!updated) return res.status(404).json({ success: false, error: { code: 'NOT_FOUND', message: 'Doctor not found' } });
     res.json({ success: true, data: updated });
   } catch (err: any) { res.status(500).json({ success: false, error: { message: err.message } }); }
@@ -534,7 +590,7 @@ app.put('/api/doctors/:id', async (req, res) => {
 app.delete('/api/doctors/:id', async (req, res) => {
   try {
     const cu = currentUser(req);
-    const result = await db.deleteDoctor(req.params.id, cu.id, cu.name);
+    const result = await db.deleteDoctor(req.params.id, cu.id, cu.name, cu.role);
     if (!result.success) {
       return res.status(409).json({ success: false, error: { code: 'DELETE_CONFLICT', message: result.error } });
     }
@@ -617,7 +673,7 @@ app.post('/api/appointments', async (req, res) => {
     const { allowOverride: _, ...apptData } = req.body;
     const cu = currentUser(req);
     apptData.createdBy = cu.name;
-    const result = await db.createAppointment(apptData, allowOverride, cu.id, cu.name);
+    const result = await db.createAppointment(apptData, allowOverride, cu.id, cu.name, cu.role);
     if (result.conflict) {
       return res.status(409).json({ success: false, error: { code: 'APPOINTMENT_CONFLICT', message: result.conflict.conflictReason, details: result.conflict } });
     }
@@ -658,7 +714,7 @@ app.put('/api/appointments/:id/status', async (req, res) => {
     }
 
     const cu = currentUser(req);
-    const updated = await db.updateAppointmentStatus(req.params.id, status, cu.id, cu.name);
+    const updated = await db.updateAppointmentStatus(req.params.id, status, cu.id, cu.name, cu.role);
     res.json({ success: true, data: updated });
   } catch (err: any) { res.status(500).json({ success: false, error: { message: err.message } }); }
 });
@@ -672,7 +728,7 @@ app.post('/api/appointments/:id/reschedule', async (req, res) => {
     const cu = currentUser(req);
     const result = await db.rescheduleAppointment(
       req.params.id, newDate, newStartTime, newEndTime,
-      reason || 'Patient request', allowOverride === true, cu.id, cu.name
+      reason || 'Patient request', allowOverride === true, cu.id, cu.name, cu.role
     );
     if (result.conflict) {
       return res.status(409).json({ success: false, error: { code: 'RESCHEDULE_CONFLICT', message: result.conflict.conflictReason, details: result.conflict } });
@@ -693,7 +749,7 @@ app.get('/api/visits', async (req, res) => {
 app.post('/api/visits', async (req, res) => {
   try {
     const cu = currentUser(req);
-    const visit = await db.createVisit(req.body, cu.id, cu.name);
+    const visit = await db.createVisit(req.body, cu.id, cu.name, cu.role);
     res.status(201).json({ success: true, data: visit });
   } catch (err: any) { res.status(500).json({ success: false, error: { message: err.message } }); }
 });
@@ -713,7 +769,7 @@ app.get('/api/treatments', async (req, res) => {
 app.post('/api/treatments', async (req, res) => {
   try {
     const cu = currentUser(req);
-    const treatment = await db.createTreatment(req.body, cu.id, cu.name);
+    const treatment = await db.createTreatment(req.body, cu.id, cu.name, cu.role);
     res.status(201).json({ success: true, data: treatment });
   } catch (err: any) { res.status(500).json({ success: false, error: { message: err.message } }); }
 });
@@ -721,7 +777,7 @@ app.post('/api/treatments', async (req, res) => {
 app.put('/api/treatments/:id', async (req, res) => {
   try {
     const cu = currentUser(req);
-    const updated = await db.updateTreatment(req.params.id, req.body, cu.id, cu.name);
+    const updated = await db.updateTreatment(req.params.id, req.body, cu.id, cu.name, cu.role);
     if (!updated) return res.status(404).json({ success: false, error: { code: 'NOT_FOUND', message: 'Treatment not found' } });
     res.json({ success: true, data: updated });
   } catch (err: any) { res.status(500).json({ success: false, error: { message: err.message } }); }
@@ -758,7 +814,7 @@ app.post('/api/prescriptions', async (req, res) => {
       return res.status(400).json({ success: false, error: { message: 'patientId and doctorId are required.' } });
     }
     const cu = currentUser(req);
-    const result = await db.createPrescription(rxData, items, cu.id, cu.name);
+    const result = await db.createPrescription(rxData, items, cu.id, cu.name, cu.role);
     // Return 201 with prescription; allergy warnings are embedded in result.allergyWarnings
     res.status(201).json({ success: true, data: result });
   } catch (err: any) { res.status(500).json({ success: false, error: { message: err.message } }); }
@@ -776,7 +832,7 @@ app.get('/api/reminders', async (req, res) => {
 app.post('/api/reminders/:id/send', async (req, res) => {
   try {
     const cu = currentUser(req);
-    const reminder = await db.triggerManualReminder(req.params.id, cu.id, cu.name);
+    const reminder = await db.triggerManualReminder(req.params.id, cu.id, cu.name, cu.role);
     if (!reminder) return res.status(404).json({ success: false, error: { code: 'NOT_FOUND', message: 'Reminder not found' } });
     res.json({ success: true, data: reminder });
   } catch (err: any) { res.status(500).json({ success: false, error: { message: err.message } }); }
@@ -808,7 +864,7 @@ app.get('/api/settings', async (_req, res) => {
 app.put('/api/settings', requireRole('ADMIN', 'RECEPTIONIST'), async (req, res) => {
   try {
     const cu = currentUser(req);
-    const updated = await db.updateSettings(req.body, cu.id, cu.name);
+    const updated = await db.updateSettings(req.body, cu.id, cu.name, cu.role);
     res.json({ success: true, data: updated });
   } catch (err: any) { res.status(500).json({ success: false, error: { message: err.message } }); }
 });
@@ -817,7 +873,10 @@ app.put('/api/settings', requireRole('ADMIN', 'RECEPTIONIST'), async (req, res) 
 // Finding 6: restrict to ADMIN role — receptionists must not read the full trail
 app.get('/api/audit-logs', requireRole('ADMIN'), async (req, res) => {
   try {
-    const limit      = Math.min(parseInt(req.query.limit as string) || 100, 500);
+    // SEC-45: parseInt('NaN') → NaN → Math.min(NaN,500) = NaN → Postgres error.
+    // Use Number.isFinite guard to ensure limit is always a valid positive integer.
+    const rawLimit   = Number(req.query.limit);
+    const limit      = Number.isFinite(rawLimit) ? Math.min(Math.max(1, rawLimit), 500) : 100;
     const entityType = req.query.entityType as string | undefined;
     const logs       = await db.getAuditLogs(limit, entityType);
     res.json({ success: true, data: logs });
@@ -838,6 +897,9 @@ app.post('/api/audit-logs/print', async (req, res) => {
   } catch (err: any) { res.status(500).json({ success: false, error: { message: err.message } }); }
 });
 
+// ─── Health check ─────────────────────────────────────────────────────────────
+app.get('/api/health', (_req, res) => res.json({ status: 'ok', ts: Date.now() }));
+
 // ─── Production static file serving ──────────────────────────────────────────
 
 if (IS_PROD) {
@@ -845,6 +907,14 @@ if (IS_PROD) {
   app.use(express.static(distPath));
   app.get('*', (_req, res) => res.sendFile(path.join(distPath, 'index.html')));
 }
+
+// ─── Global error handler — prevents stack trace leakage to clients ───────────
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
+app.use((err: any, _req: express.Request, res: express.Response, _next: express.NextFunction) => {
+  console.error('[server] Unhandled error:', err);
+  const message = IS_PROD ? 'An internal error occurred.' : (err.message ?? 'Unknown error');
+  res.status(err.status ?? 500).json({ success: false, error: { message } });
+});
 
 // ─── Start ────────────────────────────────────────────────────────────────────
 
