@@ -453,7 +453,7 @@ export async function createReceptionist(data: {
   name: string;
   email: string;
   password: string;
-}, actorId = 'system', actorName = 'Admin'): Promise<User> {
+}, actorId = 'system', actorName = 'Admin', actorRole: UserRole = 'ADMIN'): Promise<User> {
   const rows = await query<any>(
     `INSERT INTO users (name, email, role, password_hash, is_active, must_change_password)
      VALUES ($1, $2, 'RECEPTIONIST', crypt($3, gen_salt('bf')), true, true)
@@ -462,7 +462,7 @@ export async function createReceptionist(data: {
   );
   const user = mapUser(rows[0]);
   await logAudit({
-    userId: actorId, userName: actorName, userRole: 'RECEPTIONIST',
+    userId: actorId, userName: actorName, userRole: actorRole,
     action: 'USER_CREATED', entityType: 'USER',
     entityId: user.id, entityName: user.name,
   });
@@ -473,7 +473,8 @@ export async function updateReceptionist(
   id: string,
   data: { name?: string; email?: string; password?: string; isActive?: boolean },
   actorId = 'system',
-  actorName = 'Admin'
+  actorName = 'Admin',
+  actorRole: UserRole = 'ADMIN'
 ): Promise<User | null> {
   // Build dynamic SET clause — only update provided fields
   const sets: string[] = ['updated_at = NOW()'];
@@ -496,21 +497,21 @@ export async function updateReceptionist(
   if (!rows[0]) return null;
   const user = mapUser(rows[0]);
   await logAudit({
-    userId: actorId, userName: actorName, userRole: 'RECEPTIONIST',
+    userId: actorId, userName: actorName, userRole: actorRole,
     action: 'USER_UPDATED', entityType: 'USER',
     entityId: id, entityName: user.name,
   });
   return user;
 }
 
-export async function deleteReceptionist(id: string, actorId = 'system', actorName = 'Admin'): Promise<boolean> {
+export async function deleteReceptionist(id: string, actorId = 'system', actorName = 'Admin', actorRole: UserRole = 'ADMIN'): Promise<boolean> {
   const rows = await query<any>(
     `DELETE FROM users WHERE id = $1 AND role = 'RECEPTIONIST' RETURNING id, name`,
     [id]
   );
   if (!rows[0]) return false;
   await logAudit({
-    userId: actorId, userName: actorName, userRole: 'RECEPTIONIST',
+    userId: actorId, userName: actorName, userRole: actorRole,
     action: 'USER_DELETED', entityType: 'USER',
     entityId: id, entityName: rows[0].name,
   });
@@ -585,7 +586,8 @@ export async function deleteDoctorException(id: string): Promise<void> {
 export async function addDoctor(
   doc: Omit<Doctor, 'id' | 'createdAt' | 'updatedAt'>,
   actorId = 'system',
-  actorName = 'Receptionist'
+  actorName = 'Receptionist',
+  actorRole: UserRole = 'RECEPTIONIST'
 ): Promise<Doctor> {
   const rows = await query<any>(
     `INSERT INTO doctors (user_id, full_name, specialization, license_number, phone, email, profile_image, bio, color, is_active)
@@ -604,7 +606,7 @@ export async function addDoctor(
     );
   }
 
-  await logAudit({ userId: actorId, userName: actorName, userRole: 'RECEPTIONIST', action: 'DOCTOR_ADDED', entityType: 'DOCTOR', entityId: newDoc.id, entityName: newDoc.fullName });
+  await logAudit({ userId: actorId, userName: actorName, userRole: actorRole, action: 'DOCTOR_ADDED', entityType: 'DOCTOR', entityId: newDoc.id, entityName: newDoc.fullName });
   return newDoc;
 }
 
@@ -612,7 +614,8 @@ export async function updateDoctor(
   id: string,
   updates: Partial<Doctor>,
   actorId = 'system',
-  actorName = 'Receptionist'
+  actorName = 'Receptionist',
+  actorRole: UserRole = 'RECEPTIONIST'
 ): Promise<Doctor | null> {
   const old = await getDoctorById(id);
   if (!old) return null;
@@ -636,14 +639,15 @@ export async function updateDoctor(
   );
   if (!rows[0]) return null;
   const updated = mapDoctor(rows[0]);
-  await logAudit({ userId: actorId, userName: actorName, userRole: 'RECEPTIONIST', action: updates.isActive === false ? 'DOCTOR_DEACTIVATED' : 'DOCTOR_UPDATED', entityType: 'DOCTOR', entityId: id, entityName: updated.fullName, oldValues: JSON.stringify({ fullName: old.fullName, specialization: old.specialization, isActive: old.isActive }), newValues: JSON.stringify({ fullName: updated.fullName, specialization: updated.specialization, isActive: updated.isActive }) });
+  await logAudit({ userId: actorId, userName: actorName, userRole: actorRole, action: updates.isActive === false ? 'DOCTOR_DEACTIVATED' : 'DOCTOR_UPDATED', entityType: 'DOCTOR', entityId: id, entityName: updated.fullName, oldValues: JSON.stringify({ fullName: old.fullName, specialization: old.specialization, isActive: old.isActive }), newValues: JSON.stringify({ fullName: updated.fullName, specialization: updated.specialization, isActive: updated.isActive }) });
   return updated;
 }
 
 export async function deleteDoctor(
   id: string,
   actorId = 'system',
-  actorName = 'Receptionist'
+  actorName = 'Receptionist',
+  actorRole: UserRole = 'RECEPTIONIST'
 ): Promise<{ success: boolean; error?: string }> {
   // Check for linked records that would violate ON DELETE RESTRICT
   const [apptRows, treatRows, rxRows, visitRows] = await Promise.all([
@@ -680,7 +684,7 @@ export async function deleteDoctor(
   await logAudit({
     userId: actorId,
     userName: actorName,
-    userRole: 'RECEPTIONIST',
+    userRole: actorRole,
     action: 'DOCTOR_DELETED',
     entityType: 'DOCTOR',
     entityId: id,
@@ -873,7 +877,8 @@ export async function addPatient(
   patientData: Omit<Patient, 'id' | 'patientNumber' | 'createdAt' | 'updatedAt'>,
   actorId = 'system',
   actorName = 'Receptionist',
-  ipAddress?: string
+  ipAddress?: string,
+  actorRole: UserRole = 'RECEPTIONIST'
 ): Promise<Patient> {
   return transaction(async (q) => {
     // Atomically increment the counter and claim the next sequence value.
@@ -901,7 +906,7 @@ export async function addPatient(
     // transaction open while performing an unrelated write.
     const patient = mapPatient(rows[0]);
     await logAudit({
-      userId: actorId, userName: actorName, userRole: 'RECEPTIONIST',
+      userId: actorId, userName: actorName, userRole: actorRole,
       action: 'PATIENT_CREATED', entityType: 'PATIENT',
       entityId: patient.id,
       entityName: `${patient.firstName} ${patient.lastName} (${patient.patientNumber})`,
@@ -919,7 +924,8 @@ export async function updatePatient(
   updates: Partial<Patient>,
   actorId = 'system',
   actorName = 'Receptionist',
-  ipAddress?: string
+  ipAddress?: string,
+  actorRole: UserRole = 'RECEPTIONIST'
 ): Promise<Patient | null> {
   // Build a dynamic SET clause — only columns that were explicitly provided are
   // updated. Required fields (firstName, lastName, phone, dateOfBirth, gender,
@@ -957,7 +963,7 @@ export async function updatePatient(
   if (!rows[0]) return null;
   const updated = mapPatient(rows[0]);
   await logAudit({
-    userId: actorId, userName: actorName, userRole: 'RECEPTIONIST',
+    userId: actorId, userName: actorName, userRole: actorRole,
     action: 'PATIENT_UPDATED', entityType: 'PATIENT',
     entityId: id, entityName: `${updated.firstName} ${updated.lastName}`,
     ipAddress,
@@ -1204,7 +1210,8 @@ export async function createAppointment(
   apptData: Omit<Appointment, 'id' | 'createdAt' | 'updatedAt' | 'patient' | 'doctor'>,
   allowOverride = false,
   actorId = 'system',
-  actorName = 'Receptionist'
+  actorName = 'Receptionist',
+  actorRole: UserRole = 'RECEPTIONIST'
 ): Promise<{ appointment?: Appointment; conflict?: ConflictCheckResult }> {
   if (!allowOverride) {
     const conflict = await checkAppointmentConflict(
@@ -1251,7 +1258,7 @@ export async function createAppointment(
     }
   }
 
-  await logAudit({ userId: actorId, userName: actorName, userRole: 'RECEPTIONIST', action: 'APPOINTMENT_CREATED', entityType: 'APPOINTMENT', entityId: rows[0].id });
+  await logAudit({ userId: actorId, userName: actorName, userRole: actorRole, action: 'APPOINTMENT_CREATED', entityType: 'APPOINTMENT', entityId: rows[0].id });
   return { appointment: appt! };
 }
 
@@ -1259,7 +1266,8 @@ export async function updateAppointmentStatus(
   id: string,
   status: Appointment['status'],
   actorId = 'system',
-  actorName = 'Receptionist'
+  actorName = 'Receptionist',
+  actorRole: UserRole = 'RECEPTIONIST'
 ): Promise<Appointment | null> {
   await query(
     `UPDATE appointments SET status = $1, updated_at = NOW() WHERE id = $2`,
@@ -1267,7 +1275,7 @@ export async function updateAppointmentStatus(
   );
   const updated = await getAppointmentById(id);
   if (updated) {
-    await logAudit({ userId: actorId, userName: actorName, userRole: 'RECEPTIONIST', action: `APPOINTMENT_${status}`, entityType: 'APPOINTMENT', entityId: id });
+    await logAudit({ userId: actorId, userName: actorName, userRole: actorRole, action: `APPOINTMENT_${status}`, entityType: 'APPOINTMENT', entityId: id });
   }
   return updated;
 }
@@ -1280,7 +1288,8 @@ export async function rescheduleAppointment(
   reason: string,
   allowOverride = false,
   actorId = 'system',
-  actorName = 'Receptionist'
+  actorName = 'Receptionist',
+  actorRole: UserRole = 'RECEPTIONIST'
 ): Promise<{ appointment?: Appointment; conflict?: ConflictCheckResult }> {
   const old = await getAppointmentById(id);
   if (!old) return { conflict: { hasConflict: true, conflictReason: 'Appointment not found' } };
@@ -1308,7 +1317,7 @@ export async function rescheduleAppointment(
        actorName]
     );
     const newAppt = await getAppointmentById(newRows[0].id);
-    await logAudit({ userId: actorId, userName: actorName, userRole: 'RECEPTIONIST', action: 'APPOINTMENT_RESCHEDULED', entityType: 'APPOINTMENT', entityId: newRows[0].id });
+    await logAudit({ userId: actorId, userName: actorName, userRole: actorRole, action: 'APPOINTMENT_RESCHEDULED', entityType: 'APPOINTMENT', entityId: newRows[0].id });
     return { appointment: newAppt! };
   });
 }
@@ -1330,7 +1339,8 @@ export async function getVisits(patientId?: string): Promise<Visit[]> {
 export async function createVisit(
   visitData: Omit<Visit, 'id' | 'createdAt' | 'updatedAt' | 'doctor' | 'treatments' | 'prescription'>,
   actorId = 'system',
-  actorName = 'Receptionist'
+  actorName = 'Receptionist',
+  actorRole: UserRole = 'RECEPTIONIST'
 ): Promise<Visit> {
   const rows = await query<any>(
     `INSERT INTO visits (appointment_id, patient_id, doctor_id, visit_date, chief_complaint, clinical_notes, diagnosis, treatment_summary, follow_up_date)
@@ -1343,7 +1353,7 @@ export async function createVisit(
   if (visitData.appointmentId) {
     await updateAppointmentStatus(visitData.appointmentId, 'COMPLETED', actorId, actorName);
   }
-  await logAudit({ userId: actorId, userName: actorName, userRole: 'RECEPTIONIST', action: 'VISIT_RECORDED', entityType: 'VISIT', entityId: rows[0].id });
+  await logAudit({ userId: actorId, userName: actorName, userRole: actorRole, action: 'VISIT_RECORDED', entityType: 'VISIT', entityId: rows[0].id });
   return mapVisit(rows[0]);
 }
 
@@ -1377,7 +1387,8 @@ export async function getTreatments(patientId?: string, doctorId?: string): Prom
 export async function createTreatment(
   data: Omit<Treatment, 'id' | 'createdAt' | 'updatedAt' | 'doctor' | 'patient'>,
   actorId = 'system',
-  actorName = 'Receptionist'
+  actorName = 'Receptionist',
+  actorRole: UserRole = 'RECEPTIONIST'
 ): Promise<Treatment> {
   const rows = await query<any>(
     `INSERT INTO treatments
@@ -1398,7 +1409,7 @@ export async function createTreatment(
       actorName
     );
   }
-  await logAudit({ userId: actorId, userName: actorName, userRole: 'RECEPTIONIST', action: 'TREATMENT_CREATED', entityType: 'TREATMENT', entityId: rows[0].id, entityName: data.treatmentName });
+  await logAudit({ userId: actorId, userName: actorName, userRole: actorRole, action: 'TREATMENT_CREATED', entityType: 'TREATMENT', entityId: rows[0].id, entityName: data.treatmentName });
   const full = await query(
     `SELECT t.*, d.full_name as d_name, d.specialization as d_spec, d.color as d_color,
              p.first_name as p_first, p.last_name as p_last, p.patient_number as p_num
@@ -1413,7 +1424,8 @@ export async function updateTreatment(
   id: string,
   updates: Partial<Treatment>,
   actorId = 'system',
-  actorName = 'Receptionist'
+  actorName = 'Receptionist',
+  actorRole: UserRole = 'RECEPTIONIST'
 ): Promise<Treatment | null> {
   await query(
     `UPDATE treatments SET
@@ -1436,7 +1448,7 @@ export async function updateTreatment(
   );
   if (!rows[0]) return null;
   const r = rows[0];
-  await logAudit({ userId: actorId, userName: actorName, userRole: 'RECEPTIONIST', action: 'TREATMENT_UPDATED', entityType: 'TREATMENT', entityId: id });
+  await logAudit({ userId: actorId, userName: actorName, userRole: actorRole, action: 'TREATMENT_UPDATED', entityType: 'TREATMENT', entityId: id });
   return mapTreatment(r, { id: r.doctor_id, fullName: r.d_name, specialization: r.d_spec, color: r.d_color } as Doctor, { id: r.patient_id, firstName: r.p_first, lastName: r.p_last, patientNumber: r.p_num } as Patient);
 }
 
@@ -1508,7 +1520,8 @@ export async function createPrescription(
   rxData: Omit<Prescription, 'id' | 'rxNumber' | 'createdAt' | 'updatedAt' | 'items' | 'doctor' | 'patient'>,
   items: Omit<PrescriptionItem, 'id' | 'prescriptionId'>[],
   actorId = 'system',
-  actorName = 'System'
+  actorName = 'System',
+  actorRole: UserRole = 'RECEPTIONIST'
 ): Promise<Prescription> {
   const rxNumber = await generateRxNumber();
 
@@ -1578,7 +1591,7 @@ export async function createPrescription(
       );
     }
 
-    await logAudit({ userId: actorId, userName: actorName, userRole: 'DOCTOR', action: 'PRESCRIPTION_CREATED', entityType: 'PRESCRIPTION', entityId: rxId, entityName: rxNumber });
+    await logAudit({ userId: actorId, userName: actorName, userRole: actorRole, action: 'PRESCRIPTION_CREATED', entityType: 'PRESCRIPTION', entityId: rxId, entityName: rxNumber });
     return getPrescriptionById(rxId) as Promise<Prescription>;
   });
 }
@@ -1603,14 +1616,15 @@ export async function getReminders(patientId?: string): Promise<AppointmentRemin
 export async function triggerManualReminder(
   reminderId: string,
   actorId = 'system',
-  actorName = 'Receptionist'
+  actorName = 'Receptionist',
+  actorRole: UserRole = 'RECEPTIONIST'
 ): Promise<AppointmentReminder | null> {
   const rows = await query<any>(
     `UPDATE appointment_reminders SET status = 'SENT', sent_at = NOW() WHERE id = $1 RETURNING *`,
     [reminderId]
   );
   if (!rows[0]) return null;
-  await logAudit({ userId: actorId, userName: actorName, userRole: 'RECEPTIONIST', action: 'REMINDER_SENT', entityType: 'REMINDER', entityId: reminderId });
+  await logAudit({ userId: actorId, userName: actorName, userRole: actorRole, action: 'REMINDER_SENT', entityType: 'REMINDER', entityId: reminderId });
   return mapReminder(rows[0]);
 }
 
@@ -1624,7 +1638,8 @@ export async function getSettings(): Promise<ClinicSettings> {
 export async function updateSettings(
   settings: Partial<ClinicSettings>,
   actorId = 'system',
-  actorName = 'Admin'
+  actorName = 'Admin',
+  actorRole: UserRole = 'ADMIN'
 ): Promise<ClinicSettings> {
   const rows = await query<any>(
     `UPDATE clinic_settings SET
@@ -1661,7 +1676,7 @@ export async function updateSettings(
      settings.workingHoursEnd ?? settings.operatingHoursEnd ?? null,
      settings.currencySymbol ?? null]
   );
-  await logAudit({ userId: actorId, userName: actorName, userRole: 'ADMIN', action: 'SETTINGS_UPDATED', entityType: 'SETTINGS', entityId: 'clinic-default' });
+  await logAudit({ userId: actorId, userName: actorName, userRole: actorRole, action: 'SETTINGS_UPDATED', entityType: 'SETTINGS', entityId: 'clinic-default' });
   return mapSettings(rows[0]);
 }
 
