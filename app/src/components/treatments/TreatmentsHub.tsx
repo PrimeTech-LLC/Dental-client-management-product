@@ -1,8 +1,9 @@
 import React, { useState, useEffect } from 'react';
-import { UserRoundCheck, Plus, Search, Filter, Stethoscope, CheckCircle2, Clock } from 'lucide-react';
+import { UserRoundCheck, Search, CheckCircle2 } from 'lucide-react';
 import { Treatment, Doctor, TreatmentStatus } from '../../types/index.js';
 import { api } from '../../lib/api.js';
 import { formatDate, getStatusBadgeClasses } from '../../lib/utils.js';
+import { useToast, ToastContainer } from '../ui/Toast.js';
 
 interface TreatmentsHubProps {
   onSelectPatient: (patientId: string) => void;
@@ -15,6 +16,7 @@ export const TreatmentsHub: React.FC<TreatmentsHubProps> = ({ onSelectPatient })
   const [doctorFilter, setDoctorFilter] = useState<string>('ALL');
   const [searchQuery, setSearchQuery] = useState('');
   const [loading, setLoading] = useState(true);
+  const { toasts, showToast, dismissToast } = useToast();
 
   const loadData = async () => {
     try {
@@ -29,7 +31,7 @@ export const TreatmentsHub: React.FC<TreatmentsHubProps> = ({ onSelectPatient })
       setTreatments(treats);
       setDoctors(docs);
     } catch (err) {
-      console.error(err);
+      showToast('Failed to load treatment records.', 'error');
     } finally {
       setLoading(false);
     }
@@ -44,7 +46,8 @@ export const TreatmentsHub: React.FC<TreatmentsHubProps> = ({ onSelectPatient })
       const updated = await api.updateTreatment(id, { status: newStatus });
       setTreatments(prev => prev.map(t => t.id === id ? updated : t));
     } catch (err: any) {
-      alert(`Error updating treatment: ${err.message}`);
+      // BUG-04: replaced bare alert() with toast — non-blocking, accessible
+      showToast(`Failed to update treatment: ${err.message}`, 'error');
     }
   };
 
@@ -63,6 +66,8 @@ export const TreatmentsHub: React.FC<TreatmentsHubProps> = ({ onSelectPatient })
 
   return (
     <div className="p-6 space-y-6 max-w-7xl mx-auto">
+      <ToastContainer toasts={toasts} onDismiss={dismissToast} />
+
       {/* Header */}
       <div className="bg-white p-5 rounded-xl border border-slate-200 shadow-2xs flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>

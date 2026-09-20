@@ -82,7 +82,7 @@ export const DentalChart: React.FC<DentalChartProps> = ({
             </span>
             <span className="text-[10px] text-slate-400 font-mono">Universal Numbering System</span>
           </div>
-          <div className="grid grid-cols-8 sm:grid-cols-16 gap-1.5 justify-items-center">
+          <div className="grid grid-cols-8 sm:grid-cols-[repeat(16,minmax(0,1fr))] gap-1.5 justify-items-center">
             {upperArch.map(num => {
               const data = getToothData(num);
               const isSelected = selectedTooth === num;
@@ -132,7 +132,7 @@ export const DentalChart: React.FC<DentalChartProps> = ({
             </span>
             <span className="text-[10px] text-slate-400 font-mono">Universal Numbering System</span>
           </div>
-          <div className="grid grid-cols-8 sm:grid-cols-16 gap-1.5 justify-items-center">
+          <div className="grid grid-cols-8 sm:grid-cols-[repeat(16,minmax(0,1fr))] gap-1.5 justify-items-center">
             {lowerArch.map(num => {
               const data = getToothData(num);
               const isSelected = selectedTooth === num;

@@ -52,6 +52,8 @@ export const PatientProfileView: React.FC<PatientProfileViewProps> = ({
   const [patient, setPatient] = useState<any>(null);
   const [activeTab, setActiveTab] = useState<TabType>('overview');
   const [loading, setLoading] = useState(true);
+  // BUG-11: separate load error state so "Loading…" doesn't show forever on fetch failure
+  const [loadError, setLoadError] = useState('');
 
   // ── Edit Profile state ──────────────────────────────────────
   const [isEditing, setIsEditing] = useState(false);
@@ -103,10 +105,17 @@ export const PatientProfileView: React.FC<PatientProfileViewProps> = ({
   // BUG-01: doctor selector for visit form
   const [newVisitDoctorId, setNewVisitDoctorId] = useState('');
 
+  // BUG-01: per-modal error state so inline API failures are surfaced to the user
+  const [medicalModalError, setMedicalModalError] = useState('');
+  const [allergyModalError, setAllergyModalError] = useState('');
+  const [treatmentModalError, setTreatmentModalError] = useState('');
+  const [visitModalError, setVisitModalError] = useState('');
+
   // ── Load patient ─────────────────────────────────────────────
   const loadPatientData = async () => {
     try {
       setLoading(true);
+      setLoadError('');
       const [data, docs] = await Promise.all([
         api.getPatientById(patientId),
         api.getDoctors(false),
@@ -118,8 +127,9 @@ export const PatientProfileView: React.FC<PatientProfileViewProps> = ({
         setNewTreatmentDoctorId(prev => prev || docs[0].id);
         setNewVisitDoctorId(prev => prev || docs[0].id);
       }
-    } catch (err) {
-      console.error('Failed to load patient:', err);
+    } catch (err: any) {
+      // BUG-11: expose load failure instead of leaving UI stuck on "Loading…"
+      setLoadError(err?.message || 'Failed to load patient record.');
     } finally {
       setLoading(false);
     }
@@ -203,110 +213,146 @@ export const PatientProfileView: React.FC<PatientProfileViewProps> = ({
   const handleAddMedicalHistory = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!newConditionName) return;
-    const newItem = await api.addMedicalHistory(patientId, {
-      condition: newConditionName,
-      notes: newConditionNotes,
-      diagnosedAt: new Date().toISOString().split('T')[0],
-    });
-    // Optimistic update
-    setPatient((prev: any) => prev ? ({
-      ...prev,
-      medicalHistory: [newItem, ...(prev.medicalHistory || [])],
-    }) : prev);
-    setNewConditionName('');
-    setNewConditionNotes('');
-    setShowAddMedicalModal(false);
+    setMedicalModalError('');
+    try {
+      const newItem = await api.addMedicalHistory(patientId, {
+        condition: newConditionName,
+        notes: newConditionNotes,
+        diagnosedAt: new Date().toISOString().split('T')[0],
+      });
+      setPatient((prev: any) => prev ? ({
+        ...prev,
+        medicalHistory: [newItem, ...(prev.medicalHistory || [])],
+      }) : prev);
+      setNewConditionName('');
+      setNewConditionNotes('');
+      setShowAddMedicalModal(false);
+    } catch (err: any) {
+      setMedicalModalError(err?.message || 'Failed to save condition. Please try again.');
+    }
   };
 
   // ── Allergies ────────────────────────────────────────────────
   const handleAddAllergy = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!newAllergen) return;
-    const newItem = await api.addAllergy(patientId, {
-      allergen: newAllergen,
-      severity: newAllergySeverity,
-      reaction: newAllergyReaction,
-    });
-    // Optimistic update — also rebuild the summary allergy string for the banner
-    setPatient((prev: any) => {
-      if (!prev) return prev;
-      const allergyList = [...(prev.allergyList || []), newItem];
-      const allergies = allergyList.map((a: any) => `${a.allergen} (${a.severity})`).join(', ');
-      return { ...prev, allergyList, allergies };
-    });
-    setNewAllergen('');
-    setNewAllergyReaction('');
-    setShowAddAllergyModal(false);
+    setAllergyModalError('');
+    try {
+      const newItem = await api.addAllergy(patientId, {
+        allergen: newAllergen,
+        severity: newAllergySeverity,
+        reaction: newAllergyReaction,
+      });
+      setPatient((prev: any) => {
+        if (!prev) return prev;
+        const allergyList = [...(prev.allergyList || []), newItem];
+        const allergies = allergyList.map((a: any) => `${a.allergen} (${a.severity})`).join(', ');
+        return { ...prev, allergyList, allergies };
+      });
+      setNewAllergen('');
+      setNewAllergyReaction('');
+      setShowAddAllergyModal(false);
+    } catch (err: any) {
+      setAllergyModalError(err?.message || 'Failed to save allergy. Please try again.');
+    }
   };
 
   const handleDeleteAllergy = async (allergyId: string) => {
-    await api.deleteAllergy(allergyId);
-    // Optimistic update
-    setPatient((prev: any) => {
-      if (!prev) return prev;
-      const allergyList = (prev.allergyList || []).filter((a: any) => a.id !== allergyId);
-      const allergies = allergyList.length
-        ? allergyList.map((a: any) => `${a.allergen} (${a.severity})`).join(', ')
-        : null;
-      return { ...prev, allergyList, allergies };
-    });
+    try {
+      await api.deleteAllergy(allergyId);
+      setPatient((prev: any) => {
+        if (!prev) return prev;
+        const allergyList = (prev.allergyList || []).filter((a: any) => a.id !== allergyId);
+        const allergies = allergyList.length
+          ? allergyList.map((a: any) => `${a.allergen} (${a.severity})`).join(', ')
+          : null;
+        return { ...prev, allergyList, allergies };
+      });
+    } catch (err: any) {
+      // Surface delete error — allergyToDelete confirm dialog will stay open
+      setAllergyModalError(err?.message || 'Failed to delete allergy. Please try again.');
+    }
   };
   // ── Treatment ────────────────────────────────────────────────
   const handleAddTreatment = async (e: React.FormEvent) => {
     e.preventDefault();
-    // BUG-01: use the selected doctor from the form, not always the first one
     const doctorId = newTreatmentDoctorId || availableDoctors[0]?.id || '';
     if (!doctorId) return;
-    const newTreatment = await api.createTreatment({
-      patientId,
-      doctorId,
-      treatmentName: newTreatmentName,
-      toothNumber: newToothNumber ? Number(newToothNumber) : undefined,
-      cost: Number(newTreatmentCost),
-      notes: newTreatmentNotes,
-      status: 'PLANNED',
-    });
-    // Optimistic update — prepend to list
-    setPatient((prev: any) => prev ? ({
-      ...prev,
-      treatments: [newTreatment, ...(prev.treatments || [])],
-    }) : prev);
-    setShowAddTreatmentModal(false);
-    setNewTreatmentName('Dental Composite Restoration');
-    setNewToothNumber(undefined);
-    setNewTreatmentCost(150);
-    setNewTreatmentNotes('');
+    setTreatmentModalError('');
+    try {
+      const newTreatment = await api.createTreatment({
+        patientId,
+        doctorId,
+        treatmentName: newTreatmentName,
+        toothNumber: newToothNumber ? Number(newToothNumber) : undefined,
+        cost: Number(newTreatmentCost),
+        notes: newTreatmentNotes,
+        status: 'PLANNED',
+      });
+      setPatient((prev: any) => prev ? ({
+        ...prev,
+        treatments: [newTreatment, ...(prev.treatments || [])],
+      }) : prev);
+      setShowAddTreatmentModal(false);
+      setNewTreatmentName('Dental Composite Restoration');
+      setNewToothNumber(undefined);
+      setNewTreatmentCost(150);
+      setNewTreatmentNotes('');
+    } catch (err: any) {
+      setTreatmentModalError(err?.message || 'Failed to create treatment. Please try again.');
+    }
   };
 
   // ── Visit ────────────────────────────────────────────────────
   const handleAddVisit = async (e: React.FormEvent) => {
     e.preventDefault();
-    // BUG-01: use the selected doctor from the form, not always the first one
     const doctorId = newVisitDoctorId || availableDoctors[0]?.id || '';
     if (!doctorId) return;
-    const newVisit = await api.createVisit({
-      patientId,
-      doctorId,
-      visitDate: new Date().toISOString().split('T')[0],
-      chiefComplaint: newVisitChiefComplaint,
-      clinicalNotes: newVisitClinicalNotes,
-      diagnosis: newVisitDiagnosis,
-    });
-    // Optimistic update — prepend to list
-    setPatient((prev: any) => prev ? ({
-      ...prev,
-      visits: [newVisit, ...(prev.visits || [])],
-    }) : prev);
-    setShowAddVisitModal(false);
-    setNewVisitChiefComplaint('');
-    setNewVisitClinicalNotes('');
-    setNewVisitDiagnosis('');
+    setVisitModalError('');
+    try {
+      const newVisit = await api.createVisit({
+        patientId,
+        doctorId,
+        visitDate: new Date().toISOString().split('T')[0],
+        chiefComplaint: newVisitChiefComplaint,
+        clinicalNotes: newVisitClinicalNotes,
+        diagnosis: newVisitDiagnosis,
+      });
+      setPatient((prev: any) => prev ? ({
+        ...prev,
+        visits: [newVisit, ...(prev.visits || [])],
+      }) : prev);
+      setShowAddVisitModal(false);
+      setNewVisitChiefComplaint('');
+      setNewVisitClinicalNotes('');
+      setNewVisitDiagnosis('');
+    } catch (err: any) {
+      setVisitModalError(err?.message || 'Failed to record visit. Please try again.');
+    }
   };
 
-  if (loading || !patient) {
+  if (loading) {
     return (
       <div className="p-12 text-center text-xs text-slate-500">
         Loading patient clinical chart...
+      </div>
+    );
+  }
+
+  // BUG-11: show error + back button instead of hanging "Loading…" when fetch fails
+  if (loadError || !patient) {
+    return (
+      <div className="p-12 text-center space-y-3">
+        <p className="text-sm font-semibold text-rose-700">
+          {loadError || 'Patient record not found.'}
+        </p>
+        <button
+          onClick={onBack}
+          className="inline-flex items-center gap-1.5 text-xs font-medium text-slate-600 hover:text-slate-900 bg-white px-3 py-1.5 rounded-lg border border-slate-200 shadow-2xs hover:bg-slate-50 transition-colors"
+        >
+          <ArrowLeft className="w-3.5 h-3.5" />
+          <span>Back to Patients Directory</span>
+        </button>
       </div>
     );
   }
@@ -973,17 +1019,20 @@ export const PatientProfileView: React.FC<PatientProfileViewProps> = ({
           <form onSubmit={handleAddMedicalHistory} className="bg-white rounded-xl shadow-xl border border-slate-200 w-full max-w-md p-5 space-y-4 text-xs">
             <h3 className="font-bold text-sm text-slate-800">Add Medical Condition</h3>
             <div>
-              <label className="block font-semibold text-slate-700 mb-1">Condition Name *</label>
-              <input type="text" required placeholder="e.g. Type 2 Diabetes, Hypertension" value={newConditionName} onChange={e => setNewConditionName(e.target.value)}
+              <label htmlFor="med-condition" className="block font-semibold text-slate-700 mb-1">Condition Name *</label>
+              <input id="med-condition" type="text" required placeholder="e.g. Type 2 Diabetes, Hypertension" value={newConditionName} onChange={e => setNewConditionName(e.target.value)}
                 className="w-full p-2 border border-slate-300 rounded-lg text-xs" />
             </div>
             <div>
-              <label className="block font-semibold text-slate-700 mb-1">Clinical Notes</label>
-              <textarea rows={2} value={newConditionNotes} onChange={e => setNewConditionNotes(e.target.value)} placeholder="e.g. Managed with Metformin, stable"
+              <label htmlFor="med-notes" className="block font-semibold text-slate-700 mb-1">Clinical Notes</label>
+              <textarea id="med-notes" rows={2} value={newConditionNotes} onChange={e => setNewConditionNotes(e.target.value)} placeholder="e.g. Managed with Metformin, stable"
                 className="w-full p-2 border border-slate-300 rounded-lg text-xs" />
             </div>
+            {medicalModalError && (
+              <div className="p-2.5 bg-rose-50 border border-rose-200 rounded text-rose-800 text-xs">{medicalModalError}</div>
+            )}
             <div className="flex justify-end gap-2 pt-2">
-              <button type="button" onClick={() => setShowAddMedicalModal(false)} className="px-3 py-1.5 bg-slate-100 rounded text-slate-700">Cancel</button>
+              <button type="button" onClick={() => { setShowAddMedicalModal(false); setMedicalModalError(''); }} className="px-3 py-1.5 bg-slate-100 rounded text-slate-700">Cancel</button>
               <button type="submit" className="px-4 py-1.5 bg-teal-600 text-white rounded font-medium">Save Condition</button>
             </div>
           </form>
@@ -1014,8 +1063,11 @@ export const PatientProfileView: React.FC<PatientProfileViewProps> = ({
               <input type="text" value={newAllergyReaction} onChange={e => setNewAllergyReaction(e.target.value)} placeholder="e.g. Facial edema, urticaria"
                 className="w-full p-2 border border-slate-300 rounded-lg text-xs" />
             </div>
+            {allergyModalError && (
+              <div className="p-2.5 bg-rose-50 border border-rose-200 rounded text-rose-800 text-xs">{allergyModalError}</div>
+            )}
             <div className="flex justify-end gap-2 pt-2">
-              <button type="button" onClick={() => setShowAddAllergyModal(false)} className="px-3 py-1.5 bg-slate-100 rounded text-slate-700">Cancel</button>
+              <button type="button" onClick={() => { setShowAddAllergyModal(false); setAllergyModalError(''); }} className="px-3 py-1.5 bg-slate-100 rounded text-slate-700">Cancel</button>
               <button type="submit" className="px-4 py-1.5 bg-rose-600 text-white rounded font-medium">Record Allergy Alert</button>
             </div>
           </form>
@@ -1059,8 +1111,11 @@ export const PatientProfileView: React.FC<PatientProfileViewProps> = ({
               <textarea rows={2} value={newTreatmentNotes} onChange={e => setNewTreatmentNotes(e.target.value)} placeholder="e.g. Class I composite, shade A2"
                 className="w-full p-2 border border-slate-300 rounded-lg text-xs" />
             </div>
+            {treatmentModalError && (
+              <div className="p-2.5 bg-rose-50 border border-rose-200 rounded text-rose-800 text-xs">{treatmentModalError}</div>
+            )}
             <div className="flex justify-end gap-2 pt-2">
-              <button type="button" onClick={() => setShowAddTreatmentModal(false)} className="px-3 py-1.5 bg-slate-100 rounded text-slate-700">Cancel</button>
+              <button type="button" onClick={() => { setShowAddTreatmentModal(false); setTreatmentModalError(''); }} className="px-3 py-1.5 bg-slate-100 rounded text-slate-700">Cancel</button>
               <button type="submit" className="px-4 py-1.5 bg-teal-600 text-white rounded font-medium">Add to Plan</button>
             </div>
           </form>
@@ -1097,8 +1152,11 @@ export const PatientProfileView: React.FC<PatientProfileViewProps> = ({
               <textarea rows={3} value={newVisitClinicalNotes} onChange={e => setNewVisitClinicalNotes(e.target.value)} placeholder="Operatory findings, periodontal probing, radiograph notes..."
                 className="w-full p-2 border border-slate-300 rounded-lg text-xs" />
             </div>
+            {visitModalError && (
+              <div className="p-2.5 bg-rose-50 border border-rose-200 rounded text-rose-800 text-xs">{visitModalError}</div>
+            )}
             <div className="flex justify-end gap-2 pt-2">
-              <button type="button" onClick={() => setShowAddVisitModal(false)} className="px-3 py-1.5 bg-slate-100 rounded text-slate-700">Cancel</button>
+              <button type="button" onClick={() => { setShowAddVisitModal(false); setVisitModalError(''); }} className="px-3 py-1.5 bg-slate-100 rounded text-slate-700">Cancel</button>
               <button type="submit" className="px-4 py-1.5 bg-teal-600 text-white rounded font-medium">Record Visit</button>
             </div>
           </form>

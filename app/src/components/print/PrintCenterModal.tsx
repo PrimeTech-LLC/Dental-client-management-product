@@ -400,7 +400,7 @@ export const PrintCenterModal: React.FC<PrintCenterModalProps> = ({
                   <div className="space-y-4">
                     <div>
                       <span className="text-[10px] font-bold text-slate-500 uppercase block mb-1">Maxillary (Upper) Arch</span>
-                      <div className="grid grid-cols-16 gap-1 border border-slate-300 p-2 bg-slate-50 text-center font-mono text-[10px]">
+                      <div className="grid grid-cols-[repeat(16,minmax(0,1fr))] gap-1 border border-slate-300 p-2 bg-slate-50 text-center font-mono text-[10px]">
                         {Array.from({ length: 16 }, (_, i) => i + 1).map(n => (
                           <div key={n} className="border border-slate-300 h-12 flex flex-col justify-between p-1 bg-white">
                             <span className="font-bold text-slate-700">#{n}</span>
@@ -412,7 +412,7 @@ export const PrintCenterModal: React.FC<PrintCenterModalProps> = ({
 
                     <div>
                       <span className="text-[10px] font-bold text-slate-500 uppercase block mb-1">Mandibular (Lower) Arch</span>
-                      <div className="grid grid-cols-16 gap-1 border border-slate-300 p-2 bg-slate-50 text-center font-mono text-[10px]">
+                      <div className="grid grid-cols-[repeat(16,minmax(0,1fr))] gap-1 border border-slate-300 p-2 bg-slate-50 text-center font-mono text-[10px]">
                         {Array.from({ length: 16 }, (_, i) => 32 - i).map(n => (
                           <div key={n} className="border border-slate-300 h-12 flex flex-col justify-between p-1 bg-white">
                             <div className="w-4 h-4 rounded-full border border-slate-300 mx-auto"></div>

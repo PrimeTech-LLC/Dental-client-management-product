@@ -7,6 +7,23 @@
     background-color: #f8fafc;
     -webkit-font-smoothing: antialiased;
   }
+
+  /* ACC-11: Consistent, high-contrast focus indicator for all interactive elements.
+     Removes browser default (which varies per UA) and replaces with a visible
+     teal ring. Only shows on keyboard focus (not click) via :focus-visible.
+     Components that already supply focus:ring-* are not overridden because
+     Tailwind's ring utilities set outline:none — they provide their own visible ring. */
+  :focus-visible {
+    outline: 2px solid #0d9488; /* teal-600 */
+    outline-offset: 2px;
+    border-radius: 3px;
+  }
+
+  /* Remove focus outline added by :focus-visible for elements that have
+     Tailwind's focus:ring applied — they render their own indicator. */
+  [class*="focus:ring"]:focus-visible {
+    outline: none;
+  }
 }
 
 /* ── UX-05: Print Styles ──────────────────────────────────────────────────── */
