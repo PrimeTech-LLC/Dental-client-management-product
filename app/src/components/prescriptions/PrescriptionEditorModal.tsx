@@ -40,6 +40,9 @@ export const PrescriptionEditorModal: React.FC<PrescriptionEditorModalProps> = (
   // Finding 12: show server-side allergy warnings (covers more drug families
   // than the client-side check) after a successful save
   const [serverAllergyWarning, setServerAllergyWarning] = useState('');
+  // BUG-05: hold the saved prescription until the user acknowledges the warning
+  const [pendingRx, setPendingRx] = useState<any>(null);
+  const [pendingShouldPrint, setPendingShouldPrint] = useState(false);
 
   useEffect(() => {
     if (!isOpen) return;
@@ -167,15 +170,13 @@ export const PrescriptionEditorModal: React.FC<PrescriptionEditorModalProps> = (
         }))
       });
 
-      // Finding 12: surface server-side allergy warnings (covers more drug
-      // families than the client-side pre-check)
+      // BUG-05: surface server-side allergy warnings. Do NOT call onSuccess yet —
+      // the parent would close the modal before the user can read the warning.
+      // onSuccess is deferred to the "Acknowledged" button click below.
       if ((rx as any).allergyWarnings) {
         setServerAllergyWarning((rx as any).allergyWarnings);
-        // Don't close the modal immediately — let the user acknowledge the warning
-        onSuccess(rx);
-        if (shouldPrint && onOpenPrintCenter) {
-          onOpenPrintCenter('Prescription', undefined, selectedPatientId, rx);
-        }
+        setPendingRx(rx);
+        setPendingShouldPrint(shouldPrint);
         return; // stay open so user sees the warning
       }
 
@@ -229,7 +230,19 @@ export const PrescriptionEditorModal: React.FC<PrescriptionEditorModalProps> = (
             <div className="pl-6 pt-1">
               <button
                 type="button"
-                onClick={onClose}
+                onClick={() => {
+                  // BUG-05: only call onSuccess + onClose after the user
+                  // explicitly acknowledges — not when the allergy warning first appears
+                  if (pendingRx) {
+                    onSuccess(pendingRx);
+                    if (pendingShouldPrint && onOpenPrintCenter) {
+                      onOpenPrintCenter('Prescription', undefined, selectedPatientId, pendingRx);
+                    }
+                  }
+                  setPendingRx(null);
+                  setServerAllergyWarning('');
+                  onClose();
+                }}
                 className="px-3 py-1 bg-rose-600 hover:bg-rose-700 text-white rounded text-xs font-semibold"
               >
                 Acknowledged — Close

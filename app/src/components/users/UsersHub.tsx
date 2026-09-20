@@ -269,7 +269,8 @@ export const UsersHub: React.FC<UsersHubProps> = ({ currentUserId }) => {
                   <input
                     type={showPassword ? 'text' : 'password'}
                     required={!editingUser}
-                    placeholder={editingUser ? 'Leave blank to keep unchanged' : 'Min. 6 characters'}
+                    placeholder={editingUser ? 'Leave blank to keep unchanged' : 'Min. 8 characters'}
+                    minLength={editingUser ? undefined : 8}
                     value={formPassword}
                     onChange={e => setFormPassword(e.target.value)}
                     className="w-full px-3 py-2 pr-9 bg-slate-50 border border-slate-300 rounded-lg text-xs focus:bg-white focus:ring-1 focus:ring-teal-500 focus:outline-none"

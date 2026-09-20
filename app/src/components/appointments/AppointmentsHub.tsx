@@ -109,7 +109,7 @@ export const AppointmentsHub: React.FC<AppointmentsHubProps> = ({
 
   // Week days
   const weekStart = startOfWeek(selectedDate, { weekStartsOn: 1 });
-  const weekDays = Array.from({ length: 6 }).map((_, i) => addDays(weekStart, i)); // Mon to Sat
+  const weekDays = Array.from({ length: 7 }).map((_, i) => addDays(weekStart, i)); // Mon to Sun
 
   // Filter for single day view
   const dayAppointments = filteredAppointments.filter(a => a.appointmentDate === dateStr);
@@ -349,7 +349,7 @@ export const AppointmentsHub: React.FC<AppointmentsHubProps> = ({
         <div className="bg-white rounded-xl border border-slate-200 shadow-2xs overflow-x-auto">
           <div className="min-w-[900px]">
             {/* Days Header */}
-            <div className="grid grid-cols-6 border-b border-slate-200 bg-slate-100 text-xs font-semibold text-slate-700 text-center">
+            <div className="grid grid-cols-7 border-b border-slate-200 bg-slate-100 text-xs font-semibold text-slate-700 text-center">
               {weekDays.map(d => {
                 const isToday = isSameDay(d, new Date());
                 const dayAppts = filteredAppointments.filter(a => a.appointmentDate === format(d, 'yyyy-MM-dd'));
@@ -367,7 +367,7 @@ export const AppointmentsHub: React.FC<AppointmentsHubProps> = ({
             </div>
 
             {/* Days Content Matrix */}
-            <div className="grid grid-cols-6 divide-x divide-slate-200 min-h-[450px]">
+            <div className="grid grid-cols-7 divide-x divide-slate-200 min-h-[450px]">
               {weekDays.map(d => {
                 const currentDayStr = format(d, 'yyyy-MM-dd');
                 const dayAppts = filteredAppointments.filter(a => a.appointmentDate === currentDayStr);

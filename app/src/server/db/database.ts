@@ -7,6 +7,7 @@
 import { query, transaction } from './connection.js';
 import {
   User,
+  UserRole,
   Doctor,
   DoctorAvailability,
   DoctorScheduleException,
@@ -1324,14 +1325,19 @@ export async function rescheduleAppointment(
 
 // ─── Visits ─────────────────────────────────────────────────────────────────
 
-export async function getVisits(patientId?: string): Promise<Visit[]> {
+export async function getVisits(patientId?: string, limit = 200, offset = 0): Promise<Visit[]> {
+  // SCAL-01: add LIMIT/OFFSET — unbounded visit queries can return thousands of rows
+  const params: any[] = patientId ? [patientId, Math.min(limit, 500), Math.max(offset, 0)] : [Math.min(limit, 500), Math.max(offset, 0)];
+  const limitIdx  = patientId ? 2 : 1;
+  const offsetIdx = limitIdx + 1;
   const rows = await query(
     `SELECT v.*, d.full_name as d_name, d.specialization as d_spec, d.color as d_color
      FROM visits v
      LEFT JOIN doctors d ON v.doctor_id = d.id
      ${patientId ? 'WHERE v.patient_id = $1' : ''}
-     ORDER BY v.visit_date DESC`,
-    patientId ? [patientId] : []
+     ORDER BY v.visit_date DESC
+     LIMIT $${limitIdx} OFFSET $${offsetIdx}`,
+    params
   );
   return rows.map(r => mapVisit(r, { id: r.doctor_id, fullName: r.d_name, specialization: r.d_spec, color: r.d_color } as Doctor));
 }
@@ -1359,13 +1365,16 @@ export async function createVisit(
 
 // ─── Treatments ─────────────────────────────────────────────────────────────
 
-export async function getTreatments(patientId?: string, doctorId?: string): Promise<Treatment[]> {
+export async function getTreatments(patientId?: string, doctorId?: string, limit = 200, offset = 0): Promise<Treatment[]> {
   const conditions: string[] = [];
   const params: any[] = [];
   let i = 1;
   if (patientId) { conditions.push(`t.patient_id = $${i++}`); params.push(patientId); }
   if (doctorId)  { conditions.push(`t.doctor_id = $${i++}`);  params.push(doctorId); }
   const where = conditions.length ? `WHERE ${conditions.join(' AND ')}` : '';
+  // SCAL-01: add LIMIT/OFFSET to prevent full-table scans on large datasets
+  params.push(Math.min(limit, 500));
+  params.push(Math.max(offset, 0));
 
   const rows = await query(
     `SELECT t.*,
@@ -1375,7 +1384,8 @@ export async function getTreatments(patientId?: string, doctorId?: string): Prom
      LEFT JOIN doctors d ON t.doctor_id = d.id
      LEFT JOIN patients p ON t.patient_id = p.id
      ${where}
-     ORDER BY t.created_at DESC`,
+     ORDER BY t.created_at DESC
+     LIMIT $${i} OFFSET $${i + 1}`,
     params
   );
   return rows.map(r => mapTreatment(r,
@@ -1598,15 +1608,20 @@ export async function createPrescription(
 
 // ─── Reminders ──────────────────────────────────────────────────────────────
 
-export async function getReminders(patientId?: string): Promise<AppointmentReminder[]> {
+export async function getReminders(patientId?: string, limit = 200, offset = 0): Promise<AppointmentReminder[]> {
+  // SCAL-01: add LIMIT/OFFSET to prevent full table scans
+  const params: any[] = patientId ? [patientId, Math.min(limit, 500), Math.max(offset, 0)] : [Math.min(limit, 500), Math.max(offset, 0)];
+  const limitIdx  = patientId ? 2 : 1;
+  const offsetIdx = limitIdx + 1;
   const rows = await query(
     `SELECT r.*,
             p.first_name as p_first, p.last_name as p_last, p.phone as p_phone
      FROM appointment_reminders r
      LEFT JOIN patients p ON r.patient_id = p.id
      ${patientId ? 'WHERE r.patient_id = $1' : ''}
-     ORDER BY r.created_at DESC`,
-    patientId ? [patientId] : []
+     ORDER BY r.created_at DESC
+     LIMIT $${limitIdx} OFFSET $${offsetIdx}`,
+    params
   );
   return rows.map(r => mapReminder(r,
     { id: r.patient_id, firstName: r.p_first, lastName: r.p_last, phone: r.p_phone } as Patient

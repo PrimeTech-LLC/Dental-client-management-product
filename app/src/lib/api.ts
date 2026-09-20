@@ -62,7 +62,8 @@ export const api = {
     fetchJson<void>(`/api/users/receptionists/${id}`, { method: 'DELETE' }),
 
   // Patients
-  getPatients: (search = '', limit = 100, offset = 0) => 
+  // SCAL-03: lowered default to 50 — reduces PII transfer per search keystroke
+  getPatients: (search = '', limit = 50, offset = 0) => 
     fetchJson<{ patients: Patient[]; total: number }>(`/api/patients?search=${encodeURIComponent(search)}&limit=${limit}&offset=${offset}`),
   
   getPatientById: (id: string) => 

@@ -42,27 +42,32 @@ export const DoctorsHub: React.FC = () => {
   const [deleteTarget, setDeleteTarget] = useState<Doctor | null>(null);
   const [deleteError, setDeleteError] = useState('');
 
-  const loadDoctors = async () => {
+  const loadDoctors = async (cancelled?: { value: boolean }) => {
     try {
       setLoading(true);
       const docs = await api.getDoctors(true);
+      if (cancelled?.value) return;
       setDoctors(docs);
       if (docs.length > 0 && !selectedDoctor) {
         const fullDoc = await api.getDoctorById(docs[0].id);
-        setSelectedDoctor(fullDoc);
+        if (!cancelled?.value) setSelectedDoctor(fullDoc);
       } else if (selectedDoctor) {
         const fullDoc = await api.getDoctorById(selectedDoctor.id);
-        setSelectedDoctor(fullDoc);
+        if (!cancelled?.value) setSelectedDoctor(fullDoc);
       }
     } catch (err) {
-      console.error('Error loading doctors:', err);
+      if (!cancelled?.value) console.error('Error loading doctors:', err);
     } finally {
-      setLoading(false);
+      if (!cancelled?.value) setLoading(false);
     }
   };
 
   useEffect(() => {
-    loadDoctors();
+    // DEBT-08: cancelled ref prevents setState on unmounted component
+    const cancelled = { value: false };
+    loadDoctors(cancelled);
+    return () => { cancelled.value = true; };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const handleSelectDoctor = async (docId: string) => {
