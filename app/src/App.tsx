@@ -2,6 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { AppSidebar, NavSection } from './components/layout/AppSidebar.js';
 import { TopBar } from './components/layout/TopBar.js';
 import { GlobalSearchModal } from './components/layout/GlobalSearchModal.js';
+import { useToast, ToastContainer } from './components/ui/Toast.js';
 
 // Hubs & Views
 import { ReceptionistDashboard } from './components/dashboard/ReceptionistDashboard.js';
@@ -40,6 +41,11 @@ export default function App() {
   // ── Navigation state ─────────────────────────────────────────
   const [currentSection, setCurrentSection] = useState<NavSection>('dashboard');
   const [selectedPatientId, setSelectedPatientId] = useState<string | null>(null);
+  // MOB-01: mobile sidebar drawer state
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+
+  // GAP-03 / ACC-07: global toast system — exposed to all child hubs via props or context
+  const { toasts, showToast, dismissToast } = useToast();
 
   // ── Modal states ─────────────────────────────────────────────
   const [isSearchOpen, setIsSearchOpen] = useState(false);
@@ -167,6 +173,7 @@ export default function App() {
   const handleNavigate = useCallback((section: NavSection) => {
     if (section !== 'patients') setSelectedPatientId(null);
     setCurrentSection(section);
+    setIsSidebarOpen(false); // MOB-01: close drawer on navigation
   }, []);
 
   // ── Loading screen ───────────────────────────────────────────
@@ -189,11 +196,33 @@ export default function App() {
   // ── Main app ─────────────────────────────────────────────────
   return (
     <div className="h-screen bg-slate-50 text-slate-800 flex overflow-hidden font-sans antialiased selection:bg-teal-100 selection:text-teal-900">
+      {/* ACC-06: Skip navigation link — visible on keyboard focus only */}
+      <a
+        href="#main-content"
+        className="sr-only focus:not-sr-only focus:absolute focus:top-2 focus:left-2 focus:z-[200] focus:bg-white focus:text-teal-700 focus:font-semibold focus:text-sm focus:px-4 focus:py-2 focus:rounded-lg focus:shadow-lg focus:ring-2 focus:ring-teal-500"
+      >
+        Skip to main content
+      </a>
+
+      {/* MOB-01: Mobile sidebar backdrop — tap to close */}
+      {isSidebarOpen && (
+        <div
+          className="fixed inset-0 bg-slate-900/50 z-30 md:hidden"
+          onClick={() => setIsSidebarOpen(false)}
+          aria-hidden="true"
+        />
+      )}
+
+      {/* GAP-03: Global toast notifications — aria-live="polite" for screen readers */}
+      <ToastContainer toasts={toasts} onDismiss={dismissToast} />
+
       <AppSidebar
         currentSection={currentSection}
         onNavigate={handleNavigate}
         onOpenPrintCenter={() => handleOpenPrintCenter('DailySchedule')}
         currentUser={{ name: currentUser.name, role: currentUser.role }}
+        isOpen={isSidebarOpen}
+        onClose={() => setIsSidebarOpen(false)}
       />
 
       <div className="flex-1 flex flex-col overflow-hidden min-w-0">
@@ -206,9 +235,10 @@ export default function App() {
           onOpenNewPatient={() => setIsNewPatientOpen(true)}
           onOpenPrintCenter={(docType) => handleOpenPrintCenter(docType)}
           settings={clinicSettings ?? undefined}
+          onToggleSidebar={() => setIsSidebarOpen(prev => !prev)}
         />
 
-        <main className="flex-1 overflow-y-auto bg-slate-50">
+        <main id="main-content" className="flex-1 overflow-y-auto bg-slate-50">
           {currentSection === 'dashboard' && (
             <ReceptionistDashboard
               onOpenNewAppointment={() => handleOpenNewAppointment()}
@@ -217,6 +247,7 @@ export default function App() {
               onSelectPatient={handleSelectPatient}
               onRescheduleAppointment={handleOpenReschedule}
               onOpenPrintCenter={(docType, appt, ptId) => handleOpenPrintCenter(docType, appt, ptId)}
+              initialSettings={clinicSettings}
             />
           )}
 

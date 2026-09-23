@@ -22,7 +22,7 @@ import {
   X,
   Save,
 } from 'lucide-react';
-import { Patient, ToothCondition, Appointment, Treatment, Prescription, Visit, MedicalHistory, Allergy, Gender, BloodGroup } from '../../types/index.js';
+import { Patient, PatientFull, ToothCondition, Appointment, Treatment, Prescription, Visit, MedicalHistory, Allergy, Gender, BloodGroup } from '../../types/index.js';
 import { api } from '../../lib/api.js';
 import { BLOOD_GROUPS, GENDER_OPTIONS } from '../../lib/constants.js';
 import { formatDate, formatTime, calculateAge, getStatusBadgeClasses } from '../../lib/utils.js';
@@ -49,7 +49,8 @@ export const PatientProfileView: React.FC<PatientProfileViewProps> = ({
   onOpenPrintCenter,
   onRescheduleAppointment,
 }) => {
-  const [patient, setPatient] = useState<any>(null);
+  // DEBT-02: properly typed — replaces useState<any>(null)
+  const [patient, setPatient] = useState<PatientFull | null>(null);
   const [activeTab, setActiveTab] = useState<TabType>('overview');
   const [loading, setLoading] = useState(true);
   // BUG-11: separate load error state so "Loading…" doesn't show forever on fetch failure

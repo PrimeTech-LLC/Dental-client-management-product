@@ -77,8 +77,9 @@ export const AuditLogsHub: React.FC = () => {
         </div>
 
         <div className="flex items-center gap-2">
-          <label className="text-slate-500">Entity:</label>
+          <label htmlFor="audit-entity-filter" className="text-slate-500">Entity:</label>
           <select
+            id="audit-entity-filter"
             value={entityFilter}
             onChange={(e) => setEntityFilter(e.target.value)}
             className="bg-slate-50 border border-slate-300 rounded-md px-2.5 py-1.5 text-slate-700 focus:outline-hidden"
