@@ -372,3 +372,17 @@ export interface ConflictCheckResult {
   conflictReason?: string;
   conflictingAppointment?: Appointment;
 }
+
+// ─── PatientFull ─────────────────────────────────────────────────────────────
+// DEBT-02: Composite type used by PatientProfileView — replaces useState<any>.
+// The API endpoint GET /api/patients/:id returns Patient + all related arrays.
+export interface PatientFull extends Patient {
+  medicalHistory:  PatientMedicalHistory[];
+  allergyList:     PatientAllergy[];
+  medications:     PatientMedication[];
+  dentalHistory:   DentalHistory[];
+  appointments:    Appointment[];
+  treatments:      Treatment[];
+  prescriptions:   Prescription[];
+  visits:          Visit[];
+}

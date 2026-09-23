@@ -101,15 +101,17 @@ export const ReportsHub: React.FC = () => {
         </div>
 
         <div className="flex items-center gap-2">
-          <label className="text-slate-500">From:</label>
+          <label htmlFor="report-start-date" className="text-slate-500">From:</label>
           <input
+            id="report-start-date"
             type="date"
             value={startDate}
             onChange={(e) => setStartDate(e.target.value)}
             className="p-1.5 bg-slate-50 border border-slate-300 rounded text-xs"
           />
-          <label className="text-slate-500">To:</label>
+          <label htmlFor="report-end-date" className="text-slate-500">To:</label>
           <input
+            id="report-end-date"
             type="date"
             value={endDate}
             onChange={(e) => setEndDate(e.target.value)}

@@ -32,6 +32,10 @@ interface ReceptionistDashboardProps {
   onRescheduleAppointment: (appointment: Appointment) => void;
   onOpenPrintCenter: (docType?: string, appointment?: Appointment, patientId?: string) => void;
   onSelectAppointment: (appointment: Appointment) => void;
+  // SCAL-05: accept pre-loaded settings + doctors from App.tsx to avoid
+  // refetching them on every dashboard refresh (they're essentially session-static)
+  initialDoctors?: Doctor[];
+  initialSettings?: ClinicSettings | null;
 }
 
 export const ReceptionistDashboard: React.FC<ReceptionistDashboardProps> = ({
@@ -40,16 +44,20 @@ export const ReceptionistDashboard: React.FC<ReceptionistDashboardProps> = ({
   onSelectPatient,
   onRescheduleAppointment,
   onOpenPrintCenter,
-  onSelectAppointment
+  onSelectAppointment,
+  initialDoctors,
+  initialSettings,
 }) => {
   const [appointments, setAppointments] = useState<Appointment[]>([]);
-  const [doctors, setDoctors] = useState<Doctor[]>([]);
-  const [settings, setSettings] = useState<ClinicSettings | null>(null);
+  const [doctors, setDoctors] = useState<Doctor[]>(initialDoctors ?? []);
+  const [settings, setSettings] = useState<ClinicSettings | null>(initialSettings ?? null);
   const [loading, setLoading] = useState(true);
   const [doctorFilter, setDoctorFilter] = useState('ALL');
   const [statusFilter, setStatusFilter] = useState('ALL');
   const [refreshing, setRefreshing] = useState(false);
   const [yesterdayCount, setYesterdayCount] = useState<number | null>(null);
+  // BUG-08: surface status update errors instead of swallowing them
+  const [statusUpdateError, setStatusUpdateError] = useState<string | null>(null);
 
   const todayStr = new Date().toISOString().split('T')[0];
   const yesterdayStr = (() => {
@@ -60,16 +68,21 @@ export const ReceptionistDashboard: React.FC<ReceptionistDashboardProps> = ({
   const loadDashboardData = async () => {
     try {
       setRefreshing(true);
-      const [apptsData, yesterdayData, docsData, setsData] = await Promise.all([
+      // SCAL-05: only fetch today+yesterday appointments on refresh.
+      // Doctors and settings are pre-loaded from App.tsx and don't change mid-session.
+      const fetches: Promise<any>[] = [
         api.getAppointments({ date: todayStr }),
         api.getAppointments({ date: yesterdayStr }),
-        api.getDoctors(),
-        api.getSettings()
-      ]);
+      ];
+      if (!initialDoctors) fetches.push(api.getDoctors());
+      if (!initialSettings) fetches.push(api.getSettings());
+
+      const [apptsData, yesterdayData, ...rest] = await Promise.all(fetches);
       setAppointments(apptsData);
       setYesterdayCount(yesterdayData.length);
-      setDoctors(docsData);
-      setSettings(setsData);
+      let restIdx = 0;
+      if (!initialDoctors) setDoctors(rest[restIdx++]);
+      if (!initialSettings) setSettings(rest[restIdx++]);
     } catch (err) {
       console.error('Failed to load dashboard data:', err);
     } finally {
@@ -84,12 +97,15 @@ export const ReceptionistDashboard: React.FC<ReceptionistDashboardProps> = ({
 
   // Status update handler
   const handleStatusUpdate = async (apptId: string, newStatus: string) => {
+    setStatusUpdateError(null);
     try {
       const updated = await api.updateAppointmentStatus(apptId, newStatus);
       setAppointments(prev => prev.map(a => a.id === apptId ? updated : a));
     } catch (err: any) {
-      // surface inline in the future; for now log to console — never block UI with alert()
-      console.error(`Error updating appointment status: ${err.message}`);
+      // BUG-08: surface error inline instead of swallowing it
+      setStatusUpdateError(err.message || 'Failed to update appointment status.');
+      // Auto-dismiss after 5 seconds
+      setTimeout(() => setStatusUpdateError(null), 5000);
     }
   };
 
@@ -218,6 +234,23 @@ export const ReceptionistDashboard: React.FC<ReceptionistDashboardProps> = ({
               </button>
             </div>
           </div>
+
+          {/* BUG-08: inline status update error banner */}
+          {statusUpdateError && (
+            <div className="mx-5 mt-3 p-3 bg-rose-50 border border-rose-300 rounded-lg text-rose-900 text-xs flex items-center justify-between gap-3">
+              <div className="flex items-center gap-2">
+                <AlertCircle className="w-4 h-4 text-rose-600 shrink-0" aria-hidden="true" />
+                <span>{statusUpdateError}</span>
+              </div>
+              <button
+                onClick={() => setStatusUpdateError(null)}
+                aria-label="Dismiss error"
+                className="text-rose-400 hover:text-rose-700 shrink-0"
+              >
+                ✕
+              </button>
+            </div>
+          )}
 
           <div className="overflow-x-auto flex-1">
             {filteredAppointments.length === 0 ? (

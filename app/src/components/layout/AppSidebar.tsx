@@ -11,7 +11,8 @@ import {
   Settings,
   LayoutDashboard,
   Printer,
-  UserCog
+  UserCog,
+  X,
 } from 'lucide-react';
 
 export type NavItemKey =
@@ -35,8 +36,10 @@ interface AppSidebarProps {
   onSelectTab?: (tab: NavItemKey) => void;
   onNavigate?: (tab: NavItemKey) => void;
   onOpenPrintCenter?: () => void;
-  isCollapsed?: boolean;
   currentUser?: { name: string; role: string };
+  // MOB-01: mobile drawer support
+  isOpen?: boolean;
+  onClose?: () => void;
 }
 
 export const AppSidebar: React.FC<AppSidebarProps> = ({
@@ -45,42 +48,67 @@ export const AppSidebar: React.FC<AppSidebarProps> = ({
   onSelectTab,
   onNavigate,
   onOpenPrintCenter,
-  currentUser
+  currentUser,
+  isOpen = false,
+  onClose,
 }) => {
   const activeKey = currentSection || currentTab || 'dashboard';
   const handleSelect = onNavigate || onSelectTab || (() => {});
 
   const isAdmin = currentUser?.role === 'ADMIN';
 
-  const navItems: { key: NavItemKey; label: string; icon: React.FC<{ className?: string }> }[] = [
-    { key: 'dashboard',     label: 'Dashboard',    icon: LayoutDashboard },
-    { key: 'patients',      label: 'Patients',     icon: Users },
-    { key: 'appointments',  label: 'Schedule',     icon: CalendarDays },
-    { key: 'doctors',       label: 'Doctors',      icon: Stethoscope },
-    { key: 'prescriptions', label: 'Prescriptions',icon: FileText },
-    { key: 'treatments',    label: 'Treatments',   icon: UserRoundCheck },
-    { key: 'reminders',     label: 'Reminders',    icon: Bell },
-    { key: 'reports',       label: 'Reports',      icon: BarChart3 },
-    // Finding 6: audit logs are admin-only — hide the nav item for receptionists
+  const navItems: { key: NavItemKey; label: string; icon: React.FC<{ className?: string; 'aria-hidden'?: boolean }> }[] = [
+    { key: 'dashboard',     label: 'Dashboard',     icon: LayoutDashboard },
+    { key: 'patients',      label: 'Patients',      icon: Users },
+    { key: 'appointments',  label: 'Schedule',      icon: CalendarDays },
+    { key: 'doctors',       label: 'Doctors',       icon: Stethoscope },
+    { key: 'prescriptions', label: 'Prescriptions', icon: FileText },
+    { key: 'treatments',    label: 'Treatments',    icon: UserRoundCheck },
+    { key: 'reminders',     label: 'Reminders',     icon: Bell },
+    { key: 'reports',       label: 'Reports',       icon: BarChart3 },
+    // Audit logs are admin-only — hide the nav item for receptionists
     ...(isAdmin ? [{ key: 'audit' as NavItemKey, label: 'Audit Logs', icon: ShieldAlert }] : []),
-    { key: 'settings',      label: 'Settings',     icon: Settings },
-    { key: 'staff',         label: 'Staff Mgmt',   icon: UserCog },
+    { key: 'settings',      label: 'Settings',      icon: Settings },
+    { key: 'staff',         label: 'Staff Mgmt',    icon: UserCog },
   ];
 
   return (
-    <aside className="w-64 bg-slate-900 text-slate-300 flex flex-col shrink-0 border-r border-slate-800 select-none h-screen">
-      {/* Brand Header */}
-      <div className="p-6 flex items-center gap-3 border-b border-slate-800 shrink-0">
-        <div className="w-8 h-8 bg-teal-500 rounded flex items-center justify-center text-white font-bold text-base shadow-sm">
-          D
+    // MOB-01: on mobile the sidebar is an absolute overlay (z-40) that slides
+    // in from the left when isOpen=true. On md+ it is always visible (translate-x-0).
+    <aside
+      className={`
+        fixed md:relative inset-y-0 left-0 z-40
+        w-64 bg-slate-900 text-slate-300 flex flex-col shrink-0
+        border-r border-slate-800 select-none h-screen
+        transition-transform duration-200 ease-in-out
+        ${isOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0'}
+      `}
+      aria-label="Main navigation"
+    >
+      {/* Brand Header + mobile close button */}
+      <div className="p-5 flex items-center justify-between border-b border-slate-800 shrink-0">
+        <div className="flex items-center gap-3">
+          <div className="w-8 h-8 bg-teal-500 rounded flex items-center justify-center text-white font-bold text-base shadow-sm">
+            D
+          </div>
+          <span className="text-white font-semibold tracking-tight uppercase text-sm">
+            DentalOS Pro
+          </span>
         </div>
-        <span className="text-white font-semibold tracking-tight uppercase text-sm">
-          DentalOS Pro
-        </span>
+        {/* MOB-01: close button — only visible on mobile */}
+        {onClose && (
+          <button
+            onClick={onClose}
+            className="md:hidden p-1.5 text-slate-400 hover:text-white hover:bg-slate-700 rounded-md transition-colors"
+            aria-label="Close navigation menu"
+          >
+            <X className="w-4 h-4" aria-hidden="true" />
+          </button>
+        )}
       </div>
 
       {/* Navigation Items */}
-      <nav className="flex-1 p-4 space-y-1 overflow-y-auto">
+      <nav className="flex-1 p-4 space-y-1 overflow-y-auto" aria-label="Application sections">
         <div className="text-[10px] font-bold uppercase tracking-wider text-slate-500 px-3 pb-1 pt-1">
           Navigation
         </div>
@@ -91,13 +119,14 @@ export const AppSidebar: React.FC<AppSidebarProps> = ({
             <button
               key={item.key}
               onClick={() => handleSelect(item.key)}
+              aria-current={isActive ? 'page' : undefined}
               className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-md text-sm font-medium transition-colors text-left cursor-pointer ${
                 isActive
                   ? 'bg-teal-600 text-white shadow-sm'
                   : 'text-slate-300 hover:bg-slate-800 hover:text-white'
               }`}
             >
-              <Icon className={`w-4 h-4 shrink-0 ${isActive ? 'text-white' : 'text-slate-400'}`} />
+              <Icon className={`w-4 h-4 shrink-0 ${isActive ? 'text-white' : 'text-slate-400'}`} aria-hidden />
               <span className="truncate">{item.label}</span>
             </button>
           );
@@ -109,28 +138,34 @@ export const AppSidebar: React.FC<AppSidebarProps> = ({
         <div className="px-4 pb-2">
           <button
             onClick={onOpenPrintCenter}
-            className="w-full flex items-center gap-2.5 px-3.5 py-2 bg-slate-800 hover:bg-slate-700/90 text-slate-300 hover:text-white rounded-md text-xs font-medium transition-colors border border-slate-750 cursor-pointer"
+            className="w-full flex items-center gap-2.5 px-3.5 py-2 bg-slate-800 hover:bg-slate-700/90 text-slate-300 hover:text-white rounded-md text-xs font-medium transition-colors border border-slate-700 cursor-pointer"
           >
-            <Printer className="w-3.5 h-3.5 text-teal-400" />
+            <Printer className="w-3.5 h-3.5 text-teal-400" aria-hidden="true" />
             <span>Print Center & Stationery</span>
           </button>
         </div>
       )}
 
-      {/* Receptionist Profile Footer */}
+      {/* User Profile Footer */}
       <div className="p-4 border-t border-slate-800 shrink-0">
         <div className="flex items-center gap-3 p-2 bg-slate-800/50 rounded-lg border border-slate-800">
-          <div className="w-8 h-8 rounded-full bg-slate-600 text-white font-semibold flex items-center justify-center text-xs">
+          <div
+            className="w-8 h-8 rounded-full bg-slate-600 text-white font-semibold flex items-center justify-center text-xs"
+            aria-hidden="true"
+          >
             {currentUser?.name?.charAt(0)?.toUpperCase() || 'R'}
           </div>
           <div className="flex-1 min-w-0">
             <p className="text-xs font-semibold text-white truncate">{currentUser?.name || 'Receptionist'}</p>
             <p className="text-[10px] text-slate-400 uppercase tracking-wider">{currentUser?.role || 'RECEPTIONIST'}</p>
           </div>
-          <span className="w-2 h-2 rounded-full bg-emerald-500 shadow-[0_0_6px_rgba(16,185,129,0.5)]"></span>
+          <span
+            className="w-2 h-2 rounded-full bg-emerald-500 shadow-[0_0_6px_rgba(16,185,129,0.5)]"
+            role="img"
+            aria-label="Online"
+          ></span>
         </div>
       </div>
     </aside>
   );
 };
-
