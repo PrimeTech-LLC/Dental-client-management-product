@@ -50,7 +50,7 @@ const ChangePasswordScreen: React.FC<{ username: string; onDone: () => void }> =
             </svg>
           </div>
           <h1 className="text-xl font-black text-white tracking-tight">Change Your Password</h1>
-          <p className="text-xs text-blue-200">
+          <p className="text-xs text-white">
             Your account (<strong>{username}</strong>) requires a password change before you can continue.
           </p>
         </div>
@@ -199,7 +199,7 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLogin }) => {
             <h1 className="text-2xl font-black text-white tracking-tight leading-tight">
               {displayName}
             </h1>
-            <p className="text-sm text-blue-200 font-medium mt-0.5">
+            <p className="text-sm text-white font-medium mt-0.5">
               {displayTagline}
             </p>
           </div>
@@ -226,7 +226,7 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLogin }) => {
                 <input type="text" autoComplete="username" autoFocus required
                   placeholder="Enter your name or email"
                   value={username} onChange={e => setUsername(e.target.value)} disabled={loading}
-                  className="w-full pl-9 pr-4 py-2.5 bg-slate-50 border border-slate-300 rounded-lg text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none focus:border-blue-700 focus:bg-white transition-colors disabled:opacity-60" />
+                  className="w-full pl-9 pr-4 py-2.5 bg-slate-50 border border-slate-300 rounded-lg text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none focus:border-blue-800 focus:bg-white transition-colors disabled:opacity-60" />
               </div>
             </div>
 
@@ -242,7 +242,7 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLogin }) => {
                 <input type={showPassword ? 'text' : 'password'} autoComplete="current-password" required
                   placeholder="Enter your password"
                   value={password} onChange={e => setPassword(e.target.value)} disabled={loading}
-                  className="w-full pl-9 pr-10 py-2.5 bg-slate-50 border border-slate-300 rounded-lg text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none focus:border-blue-700 focus:bg-white transition-colors disabled:opacity-60" />
+                  className="w-full pl-9 pr-10 py-2.5 bg-slate-50 border border-slate-300 rounded-lg text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none focus:border-blue-800 focus:bg-white transition-colors disabled:opacity-60" />
                 <button type="button" onClick={() => setShowPassword(v => !v)} tabIndex={-1}
                   className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600">
                   {showPassword ? (
@@ -290,7 +290,7 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLogin }) => {
           </form>
         </div>
 
-        <p className="text-center text-[11px] text-blue-300">
+        <p className="text-center text-[11px] text-blue-50">
           {displayName} · Secure Internal System
         </p>
       </div>

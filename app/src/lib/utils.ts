@@ -44,11 +44,11 @@ export function getStatusBadgeClasses(status: string): string {
     case 'ARRIVED':
       return 'bg-amber-50 text-amber-800 border-amber-300 ring-1 ring-amber-300/50';
     case 'IN_PROGRESS':
-      return 'bg-blue-50 text-blue-800 border-blue-300 ring-1 ring-blue-300/50 animate-pulse';
+      return 'bg-blue-50 text-blue-800 border-blue-200 ring-1 ring-blue-800/20 animate-pulse';
     case 'COMPLETED':
       return 'bg-emerald-50 text-emerald-800 border-emerald-300';
     case 'CONFIRMED':
-      return 'bg-blue-50 text-blue-800 border-blue-300';
+      return 'bg-blue-50 text-blue-800 border-blue-200';
     case 'SCHEDULED':
       return 'bg-slate-100 text-slate-700 border-slate-300';
     case 'CANCELLED':
@@ -58,7 +58,7 @@ export function getStatusBadgeClasses(status: string): string {
     case 'RESCHEDULED':
       return 'bg-purple-50 text-purple-800 border-purple-300';
     case 'PLANNED':
-      return 'bg-indigo-50 text-indigo-700 border-indigo-200';
+      return 'bg-blue-50 text-blue-800 border-blue-200';
     case 'ACTIVE':
       return 'bg-emerald-50 text-emerald-700 border-emerald-200';
     case 'INACTIVE':

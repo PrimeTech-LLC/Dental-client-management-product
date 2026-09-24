@@ -453,7 +453,7 @@ export const PrintCenterModal: React.FC<PrintCenterModalProps> = ({
                     </div>
                     <div>
                       <span className="text-slate-400 block text-[9px] uppercase font-bold">Patient ID</span>
-                      <span className="font-mono font-bold text-blue-900">{patient.patientNumber}</span>
+                      <span className="font-mono font-bold text-blue-800">{patient.patientNumber}</span>
                     </div>
                     <div>
                       <span className="text-slate-400 block text-[9px] uppercase font-bold">Age / Gender / DOB</span>

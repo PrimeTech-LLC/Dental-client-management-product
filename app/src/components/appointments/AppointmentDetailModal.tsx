@@ -110,7 +110,7 @@ export const AppointmentDetailModal: React.FC<AppointmentDetailModalProps> = ({
               </span>
               <button
                 onClick={() => { onSelectPatient(appointment.patientId); onClose(); }}
-                className="text-blue-800 hover:text-blue-900 font-semibold text-[11px] underline"
+                className="text-blue-800 hover:text-blue-800 font-semibold text-[11px] underline"
               >
                 View Full Patient Chart →
               </button>
@@ -119,7 +119,7 @@ export const AppointmentDetailModal: React.FC<AppointmentDetailModalProps> = ({
               {appointment.patient?.firstName} {appointment.patient?.lastName}
             </div>
             <div className="flex items-center gap-3 text-slate-600 text-[11px]">
-              <span className="font-mono text-blue-900 bg-blue-50 px-1.5 py-0.5 rounded border border-blue-200">
+              <span className="font-mono text-blue-800 bg-blue-50 px-1.5 py-0.5 rounded border border-blue-200">
                 {appointment.patient?.patientNumber}
               </span>
               <span className="flex items-center gap-1">
@@ -200,7 +200,7 @@ export const AppointmentDetailModal: React.FC<AppointmentDetailModalProps> = ({
                 <StatusBtn toStatus="ARRIVED"     label="Mark Arrived (In Waiting)"
                   className="bg-amber-50 hover:bg-amber-100 text-amber-900 border-amber-300" />
                 <StatusBtn toStatus="IN_PROGRESS" label="Start Operatory Session"
-                  className="bg-blue-50 hover:bg-blue-100 text-blue-900 border-blue-300" />
+                  className="bg-blue-50 hover:bg-blue-50 text-blue-800 border-blue-200" />
                 <StatusBtn toStatus="COMPLETED"   label="Mark Completed"
                   className="bg-emerald-50 hover:bg-emerald-100 text-emerald-900 border-emerald-300" />
 

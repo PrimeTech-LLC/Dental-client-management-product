@@ -193,7 +193,7 @@ export const NewPatientModal: React.FC<NewPatientModalProps> = ({
                   placeholder="e.g. John"
                   value={firstName}
                   onChange={(e) => setFirstName(e.target.value)}
-                  className="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-lg text-xs focus:bg-white focus:ring-1 focus:ring-blue-700 focus:outline-hidden"
+                  className="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-lg text-xs focus:bg-white focus:ring-1 focus:ring-blue-800 focus:outline-hidden"
                 />
               </div>
 
@@ -207,7 +207,7 @@ export const NewPatientModal: React.FC<NewPatientModalProps> = ({
                   placeholder="e.g. Smith"
                   value={lastName}
                   onChange={(e) => setLastName(e.target.value)}
-                  className="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-lg text-xs focus:bg-white focus:ring-1 focus:ring-blue-700 focus:outline-hidden"
+                  className="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-lg text-xs focus:bg-white focus:ring-1 focus:ring-blue-800 focus:outline-hidden"
                 />
               </div>
 
@@ -221,7 +221,7 @@ export const NewPatientModal: React.FC<NewPatientModalProps> = ({
                   placeholder="e.g. +1 555-0199"
                   value={phone}
                   onChange={(e) => setPhone(e.target.value)}
-                  className="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-lg text-xs focus:bg-white focus:ring-1 focus:ring-blue-700 focus:outline-hidden"
+                  className="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-lg text-xs focus:bg-white focus:ring-1 focus:ring-blue-800 focus:outline-hidden"
                 />
               </div>
 
@@ -234,7 +234,7 @@ export const NewPatientModal: React.FC<NewPatientModalProps> = ({
                   placeholder="e.g. john.smith@example.com"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
-                  className="w-full px-3 py-2 bg-white border border-slate-300 rounded-lg text-xs focus:ring-1 focus:ring-blue-700 focus:outline-hidden"
+                  className="w-full px-3 py-2 bg-white border border-slate-300 rounded-lg text-xs focus:ring-1 focus:ring-blue-800 focus:outline-hidden"
                 />
               </div>
 
@@ -247,7 +247,7 @@ export const NewPatientModal: React.FC<NewPatientModalProps> = ({
                   required
                   value={dateOfBirth}
                   onChange={(e) => setDateOfBirth(e.target.value)}
-                  className="w-full px-3 py-2 bg-white border border-slate-300 rounded-lg text-xs focus:ring-1 focus:ring-blue-700 focus:outline-hidden"
+                  className="w-full px-3 py-2 bg-white border border-slate-300 rounded-lg text-xs focus:ring-1 focus:ring-blue-800 focus:outline-hidden"
                 />
               </div>
 
@@ -258,7 +258,7 @@ export const NewPatientModal: React.FC<NewPatientModalProps> = ({
                 <select
                   value={gender}
                   onChange={(e) => setGender(e.target.value as Gender)}
-                  className="w-full px-3 py-2 bg-white border border-slate-300 rounded-lg text-xs focus:ring-1 focus:ring-blue-700 focus:outline-hidden"
+                  className="w-full px-3 py-2 bg-white border border-slate-300 rounded-lg text-xs focus:ring-1 focus:ring-blue-800 focus:outline-hidden"
                 >
                   {GENDER_OPTIONS.map(g => (
                     <option key={g.value} value={g.value}>{g.label}</option>
@@ -273,7 +273,7 @@ export const NewPatientModal: React.FC<NewPatientModalProps> = ({
                 <select
                   value={bloodGroup}
                   onChange={(e) => setBloodGroup(e.target.value as BloodGroup)}
-                  className="w-full px-3 py-2 bg-white border border-slate-300 rounded-lg text-xs focus:ring-1 focus:ring-blue-700 focus:outline-hidden"
+                  className="w-full px-3 py-2 bg-white border border-slate-300 rounded-lg text-xs focus:ring-1 focus:ring-blue-800 focus:outline-hidden"
                 >
                   {BLOOD_GROUPS.map(bg => (
                     <option key={bg} value={bg}>{bg}</option>
@@ -290,7 +290,7 @@ export const NewPatientModal: React.FC<NewPatientModalProps> = ({
                   placeholder="e.g. Software Engineer"
                   value={occupation}
                   onChange={(e) => setOccupation(e.target.value)}
-                  className="w-full px-3 py-2 bg-white border border-slate-300 rounded-lg text-xs focus:ring-1 focus:ring-blue-700 focus:outline-hidden"
+                  className="w-full px-3 py-2 bg-white border border-slate-300 rounded-lg text-xs focus:ring-1 focus:ring-blue-800 focus:outline-hidden"
                 />
               </div>
             </div>
@@ -304,7 +304,7 @@ export const NewPatientModal: React.FC<NewPatientModalProps> = ({
                 placeholder="e.g. 742 Evergreen Terrace, Springfield"
                 value={address}
                 onChange={(e) => setAddress(e.target.value)}
-                className="w-full px-3 py-2 bg-white border border-slate-300 rounded-lg text-xs focus:ring-1 focus:ring-blue-700 focus:outline-hidden"
+                className="w-full px-3 py-2 bg-white border border-slate-300 rounded-lg text-xs focus:ring-1 focus:ring-blue-800 focus:outline-hidden"
               />
             </div>
           </div>
@@ -324,7 +324,7 @@ export const NewPatientModal: React.FC<NewPatientModalProps> = ({
                   placeholder="e.g. Jane Smith (Spouse)"
                   value={emergencyContactName}
                   onChange={(e) => setEmergencyContactName(e.target.value)}
-                  className="w-full px-3 py-2 bg-white border border-slate-300 rounded-lg text-xs focus:ring-1 focus:ring-blue-700 focus:outline-hidden"
+                  className="w-full px-3 py-2 bg-white border border-slate-300 rounded-lg text-xs focus:ring-1 focus:ring-blue-800 focus:outline-hidden"
                 />
               </div>
 
@@ -337,7 +337,7 @@ export const NewPatientModal: React.FC<NewPatientModalProps> = ({
                   placeholder="e.g. +1 555-0198"
                   value={emergencyContactPhone}
                   onChange={(e) => setEmergencyContactPhone(e.target.value)}
-                  className="w-full px-3 py-2 bg-white border border-slate-300 rounded-lg text-xs focus:ring-1 focus:ring-blue-700 focus:outline-hidden"
+                  className="w-full px-3 py-2 bg-white border border-slate-300 rounded-lg text-xs focus:ring-1 focus:ring-blue-800 focus:outline-hidden"
                 />
               </div>
             </div>
@@ -373,7 +373,7 @@ export const NewPatientModal: React.FC<NewPatientModalProps> = ({
                   placeholder="e.g. Hypertension (controlled), Type 2 Diabetes, on Aspirin, Pacemaker"
                   value={medicalNotes}
                   onChange={(e) => setMedicalNotes(e.target.value)}
-                  className="w-full px-3 py-2 bg-white border border-slate-300 rounded-lg text-xs focus:ring-1 focus:ring-blue-700 focus:outline-hidden"
+                  className="w-full px-3 py-2 bg-white border border-slate-300 rounded-lg text-xs focus:ring-1 focus:ring-blue-800 focus:outline-hidden"
                 />
               </div>
             </div>

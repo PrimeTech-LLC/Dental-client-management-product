@@ -202,7 +202,7 @@ export const ReceptionistDashboard: React.FC<ReceptionistDashboardProps> = ({
               <select
                 value={doctorFilter}
                 onChange={(e) => setDoctorFilter(e.target.value)}
-                className="px-3 py-1.5 text-xs bg-slate-50 border border-slate-200 rounded-md text-slate-700 hover:bg-slate-100 focus:outline-none focus:ring-1 focus:ring-blue-700 cursor-pointer"
+                className="px-3 py-1.5 text-xs bg-slate-50 border border-slate-200 rounded-md text-slate-700 hover:bg-slate-100 focus:outline-none focus:ring-1 focus:ring-blue-800 cursor-pointer"
               >
                 <option value="ALL">All Doctors</option>
                 {doctors.map(d => (
@@ -213,7 +213,7 @@ export const ReceptionistDashboard: React.FC<ReceptionistDashboardProps> = ({
               <select
                 value={statusFilter}
                 onChange={(e) => setStatusFilter(e.target.value)}
-                className="px-3 py-1.5 text-xs bg-slate-50 border border-slate-200 rounded-md text-slate-700 hover:bg-slate-100 focus:outline-none focus:ring-1 focus:ring-blue-700 cursor-pointer"
+                className="px-3 py-1.5 text-xs bg-slate-50 border border-slate-200 rounded-md text-slate-700 hover:bg-slate-100 focus:outline-none focus:ring-1 focus:ring-blue-800 cursor-pointer"
               >
                 <option value="ALL">All Statuses</option>
                 <option value="SCHEDULED">Scheduled</option>
@@ -289,7 +289,7 @@ export const ReceptionistDashboard: React.FC<ReceptionistDashboardProps> = ({
                       <tr
                         key={appt.id}
                         className={`transition-colors hover:bg-slate-50/80 ${
-                          isInProgress ? 'bg-blue-50/30' : isArrived ? 'bg-amber-50/30' : ''
+                          isInProgress ? 'bg-blue-50/40' : isArrived ? 'bg-slate-50' : ''
                         }`}
                       >
                         {/* Time */}
@@ -345,7 +345,7 @@ export const ReceptionistDashboard: React.FC<ReceptionistDashboardProps> = ({
                               Completed
                             </span>
                           ) : isInProgress ? (
-                            <span className="px-2 py-1 bg-blue-800 text-white text-[10px] font-bold rounded uppercase border border-blue-900 shadow-xs">
+                            <span className="px-2 py-1 bg-blue-800 text-white text-[10px] font-bold rounded uppercase border border-blue-800 shadow-xs">
                               In Progress
                             </span>
                           ) : isArrived ? (
@@ -373,7 +373,7 @@ export const ReceptionistDashboard: React.FC<ReceptionistDashboardProps> = ({
                             {appt.status === 'SCHEDULED' && (
                               <button
                                 onClick={() => handleStatusUpdate(appt.id, 'ARRIVED')}
-                                className="text-blue-800 hover:text-blue-900 hover:underline font-medium text-xs cursor-pointer"
+                                className="text-blue-800 hover:text-blue-800 hover:underline font-medium text-xs cursor-pointer"
                               >
                                 Arrival
                               </button>
@@ -382,7 +382,7 @@ export const ReceptionistDashboard: React.FC<ReceptionistDashboardProps> = ({
                             {appt.status === 'CONFIRMED' && (
                               <button
                                 onClick={() => handleStatusUpdate(appt.id, 'ARRIVED')}
-                                className="text-blue-800 hover:text-blue-900 hover:underline font-medium text-xs cursor-pointer"
+                                className="text-blue-800 hover:text-blue-800 hover:underline font-medium text-xs cursor-pointer"
                               >
                                 Arrival
                               </button>
@@ -391,7 +391,7 @@ export const ReceptionistDashboard: React.FC<ReceptionistDashboardProps> = ({
                             {appt.status === 'ARRIVED' && (
                               <button
                                 onClick={() => handleStatusUpdate(appt.id, 'IN_PROGRESS')}
-                                className="text-blue-800 hover:text-blue-900 hover:underline font-medium text-xs cursor-pointer"
+                                className="text-blue-800 hover:text-blue-800 hover:underline font-medium text-xs cursor-pointer"
                               >
                                 Start Visit
                               </button>

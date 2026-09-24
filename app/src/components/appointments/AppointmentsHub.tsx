@@ -303,7 +303,7 @@ export const AppointmentsHub: React.FC<AppointmentsHubProps> = ({
                                 <div
                                   key={appt.id}
                                   onClick={() => onSelectAppointment(appt)}
-                                  className="p-2.5 rounded-lg bg-white border border-slate-200 shadow-2xs hover:border-blue-500 hover:shadow-xs transition-all cursor-pointer text-xs"
+                                  className="p-2.5 rounded-lg bg-white border border-slate-200 shadow-2xs hover:border-blue-800 hover:shadow-xs transition-all cursor-pointer text-xs"
                                 >
                                   <div className="flex items-center justify-between">
                                     <span className="font-bold text-slate-900 truncate">
@@ -355,7 +355,7 @@ export const AppointmentsHub: React.FC<AppointmentsHubProps> = ({
                 const dayAppts = filteredAppointments.filter(a => a.appointmentDate === format(d, 'yyyy-MM-dd'));
 
                 return (
-                  <div key={d.toISOString()} className={`p-3 border-r border-slate-200 last:border-r-0 ${isToday ? 'bg-blue-50/80 text-blue-950' : ''}`}>
+                  <div key={d.toISOString()} className={`p-3 border-r border-slate-200 last:border-r-0 ${isToday ? 'bg-blue-50/80 text-blue-800' : ''}`}>
                     <div className="font-bold text-sm">{format(d, 'EEE')}</div>
                     <div className="text-xs text-slate-500">{format(d, 'MMM dd')}</div>
                     <div className="text-[10px] font-mono mt-1 text-slate-400">
@@ -383,7 +383,7 @@ export const AppointmentsHub: React.FC<AppointmentsHubProps> = ({
                         <div
                           key={appt.id}
                           onClick={() => onSelectAppointment(appt)}
-                          className="p-2 rounded-lg bg-white border border-slate-200 shadow-2xs hover:border-blue-500 transition-all cursor-pointer text-xs space-y-1"
+                          className="p-2 rounded-lg bg-white border border-slate-200 shadow-2xs hover:border-blue-800 transition-all cursor-pointer text-xs space-y-1"
                         >
                           <div className="flex items-center justify-between">
                             <span className="font-mono text-[10px] font-bold text-slate-700">

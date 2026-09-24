@@ -49,14 +49,14 @@ const iconMap: Record<ToastType, React.ReactNode> = {
   success: <CheckCircle2 className="w-4 h-4 shrink-0 text-emerald-500" />,
   error:   <XCircle      className="w-4 h-4 shrink-0 text-rose-500" />,
   warning: <AlertTriangle className="w-4 h-4 shrink-0 text-amber-500" />,
-  info:    <Info          className="w-4 h-4 shrink-0 text-blue-500" />,
+  info:    <Info          className="w-4 h-4 shrink-0 text-blue-800" />,
 };
 
 const bgMap: Record<ToastType, string> = {
   success: 'bg-emerald-50 border-emerald-300 text-emerald-900',
   error:   'bg-rose-50 border-rose-300 text-rose-900',
   warning: 'bg-amber-50 border-amber-300 text-amber-900',
-  info:    'bg-blue-50 border-blue-300 text-blue-900',
+  info:    'bg-blue-50 border-blue-200 text-blue-800',
 };
 
 export const ToastContainer: React.FC<ToastContainerProps> = ({ toasts, onDismiss }) => {

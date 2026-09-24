@@ -389,7 +389,7 @@ export const PatientProfileView: React.FC<PatientProfileViewProps> = ({
           </button>
           <button
             onClick={() => onOpenNewPrescription(patient.id)}
-            className="flex items-center gap-1.5 px-3 py-1.5 bg-white hover:bg-slate-50 text-blue-900 rounded-lg text-xs font-medium border border-blue-300 shadow-2xs"
+            className="flex items-center gap-1.5 px-3 py-1.5 bg-white hover:bg-slate-50 text-blue-800 rounded-lg text-xs font-medium border border-blue-200 shadow-2xs"
           >
             <FileText className="w-3.5 h-3.5 text-blue-800" />
             <span>+ Prescription</span>
@@ -427,7 +427,7 @@ export const PatientProfileView: React.FC<PatientProfileViewProps> = ({
         <div className="flex flex-col md:flex-row md:items-start justify-between gap-6">
           {/* Left: identity */}
           <div className="flex items-start gap-4 flex-1 min-w-0">
-            <div className="w-14 h-14 rounded-xl bg-blue-900 text-white font-bold text-xl flex items-center justify-center shadow-xs shrink-0">
+            <div className="w-14 h-14 rounded-xl bg-blue-800 text-white font-bold text-xl flex items-center justify-center shadow-xs shrink-0">
               {patient.firstName.charAt(0)}{patient.lastName.charAt(0)}
             </div>
             <div className="min-w-0">
@@ -435,7 +435,7 @@ export const PatientProfileView: React.FC<PatientProfileViewProps> = ({
                 <h1 className="text-xl font-bold text-slate-900">
                   {patient.firstName} {patient.lastName}
                 </h1>
-                <span className="font-mono text-xs font-bold text-blue-900 bg-blue-50 px-2 py-0.5 rounded border border-blue-200">
+                <span className="font-mono text-xs font-bold text-blue-800 bg-blue-50 px-2 py-0.5 rounded border border-blue-200">
                   {patient.patientNumber}
                 </span>
                 <span className="text-xs font-medium text-slate-500 bg-slate-100 px-2 py-0.5 rounded">
@@ -558,7 +558,7 @@ export const PatientProfileView: React.FC<PatientProfileViewProps> = ({
                           <span className="font-semibold text-slate-800">{t.treatmentName}</span>
                           {t.toothNumber && <span className="ml-1 text-[10px] text-slate-500 font-mono">(#{t.toothNumber})</span>}
                         </div>
-                        <span className="text-[10px] px-1.5 py-0.5 rounded bg-indigo-50 text-indigo-700 border border-indigo-200">{t.status}</span>
+                        <span className="text-[10px] px-1.5 py-0.5 rounded bg-blue-50 text-blue-800 border border-blue-200">{t.status}</span>
                       </div>
                     ))}
                   </div>
@@ -892,37 +892,37 @@ export const PatientProfileView: React.FC<PatientProfileViewProps> = ({
                   <div>
                     <label className="font-semibold text-slate-700 block mb-1">First Name *</label>
                     <input type="text" required value={editFirstName} onChange={e => setEditFirstName(e.target.value)}
-                      className="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-lg text-xs focus:bg-white focus:ring-1 focus:ring-blue-700 focus:outline-none" />
+                      className="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-lg text-xs focus:bg-white focus:ring-1 focus:ring-blue-800 focus:outline-none" />
                   </div>
                   <div>
                     <label className="font-semibold text-slate-700 block mb-1">Last Name *</label>
                     <input type="text" required value={editLastName} onChange={e => setEditLastName(e.target.value)}
-                      className="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-lg text-xs focus:bg-white focus:ring-1 focus:ring-blue-700 focus:outline-none" />
+                      className="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-lg text-xs focus:bg-white focus:ring-1 focus:ring-blue-800 focus:outline-none" />
                   </div>
                   <div>
                     <label className="font-semibold text-slate-700 block mb-1">Primary Phone *</label>
                     <input type="tel" required value={editPhone} onChange={e => setEditPhone(e.target.value)}
-                      className="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-lg text-xs font-mono focus:bg-white focus:ring-1 focus:ring-blue-700 focus:outline-none" />
+                      className="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-lg text-xs font-mono focus:bg-white focus:ring-1 focus:ring-blue-800 focus:outline-none" />
                   </div>
                   <div>
                     <label className="font-semibold text-slate-700 block mb-1">Alternate Phone</label>
                     <input type="tel" value={editAlternatePhone} onChange={e => setEditAlternatePhone(e.target.value)}
-                      className="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-lg text-xs font-mono focus:bg-white focus:ring-1 focus:ring-blue-700 focus:outline-none" />
+                      className="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-lg text-xs font-mono focus:bg-white focus:ring-1 focus:ring-blue-800 focus:outline-none" />
                   </div>
                   <div className="sm:col-span-2">
                     <label className="font-semibold text-slate-700 block mb-1">Email Address</label>
                     <input type="email" value={editEmail} onChange={e => setEditEmail(e.target.value)}
-                      className="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-lg text-xs focus:bg-white focus:ring-1 focus:ring-blue-700 focus:outline-none" />
+                      className="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-lg text-xs focus:bg-white focus:ring-1 focus:ring-blue-800 focus:outline-none" />
                   </div>
                   <div>
                     <label className="font-semibold text-slate-700 block mb-1">Date of Birth *</label>
                     <input type="date" required value={editDateOfBirth} onChange={e => setEditDateOfBirth(e.target.value)}
-                      className="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-lg text-xs focus:bg-white focus:ring-1 focus:ring-blue-700 focus:outline-none" />
+                      className="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-lg text-xs focus:bg-white focus:ring-1 focus:ring-blue-800 focus:outline-none" />
                   </div>
                   <div>
                     <label className="font-semibold text-slate-700 block mb-1">Gender *</label>
                     <select value={editGender} onChange={e => setEditGender(e.target.value as Gender)}
-                      className="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-lg text-xs focus:bg-white focus:ring-1 focus:ring-blue-700 focus:outline-none">
+                      className="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-lg text-xs focus:bg-white focus:ring-1 focus:ring-blue-800 focus:outline-none">
                       {GENDER_OPTIONS.map(g => (
                         <option key={g.value} value={g.value}>{g.label}</option>
                       ))}
@@ -931,19 +931,19 @@ export const PatientProfileView: React.FC<PatientProfileViewProps> = ({
                   <div>
                     <label className="font-semibold text-slate-700 block mb-1">Blood Group</label>
                     <select value={editBloodGroup} onChange={e => setEditBloodGroup(e.target.value as BloodGroup)}
-                      className="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-lg text-xs focus:bg-white focus:ring-1 focus:ring-blue-700 focus:outline-none">
+                      className="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-lg text-xs focus:bg-white focus:ring-1 focus:ring-blue-800 focus:outline-none">
                       {BLOOD_GROUPS.map(bg => <option key={bg} value={bg}>{bg}</option>)}
                     </select>
                   </div>
                   <div>
                     <label className="font-semibold text-slate-700 block mb-1">Occupation</label>
                     <input type="text" value={editOccupation} onChange={e => setEditOccupation(e.target.value)}
-                      className="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-lg text-xs focus:bg-white focus:ring-1 focus:ring-blue-700 focus:outline-none" />
+                      className="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-lg text-xs focus:bg-white focus:ring-1 focus:ring-blue-800 focus:outline-none" />
                   </div>
                   <div className="sm:col-span-2">
                     <label className="font-semibold text-slate-700 block mb-1">Residential Address</label>
                     <input type="text" value={editAddress} onChange={e => setEditAddress(e.target.value)}
-                      className="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-lg text-xs focus:bg-white focus:ring-1 focus:ring-blue-700 focus:outline-none" />
+                      className="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-lg text-xs focus:bg-white focus:ring-1 focus:ring-blue-800 focus:outline-none" />
                   </div>
                 </div>
               </div>
@@ -957,17 +957,17 @@ export const PatientProfileView: React.FC<PatientProfileViewProps> = ({
                   <div>
                     <label className="font-semibold text-slate-700 block mb-1">Contact Name</label>
                     <input type="text" value={editEmergencyName} onChange={e => setEditEmergencyName(e.target.value)} placeholder="e.g. Jane Smith"
-                      className="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-lg text-xs focus:bg-white focus:ring-1 focus:ring-blue-700 focus:outline-none" />
+                      className="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-lg text-xs focus:bg-white focus:ring-1 focus:ring-blue-800 focus:outline-none" />
                   </div>
                   <div>
                     <label className="font-semibold text-slate-700 block mb-1">Contact Phone</label>
                     <input type="tel" value={editEmergencyPhone} onChange={e => setEditEmergencyPhone(e.target.value)}
-                      className="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-lg text-xs font-mono focus:bg-white focus:ring-1 focus:ring-blue-700 focus:outline-none" />
+                      className="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-lg text-xs font-mono focus:bg-white focus:ring-1 focus:ring-blue-800 focus:outline-none" />
                   </div>
                   <div>
                     <label className="font-semibold text-slate-700 block mb-1">Relationship</label>
                     <input type="text" value={editEmergencyRelation} onChange={e => setEditEmergencyRelation(e.target.value)} placeholder="e.g. Spouse, Parent"
-                      className="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-lg text-xs focus:bg-white focus:ring-1 focus:ring-blue-700 focus:outline-none" />
+                      className="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-lg text-xs focus:bg-white focus:ring-1 focus:ring-blue-800 focus:outline-none" />
                   </div>
                 </div>
               </div>
@@ -982,7 +982,7 @@ export const PatientProfileView: React.FC<PatientProfileViewProps> = ({
                   value={editGeneralNotes}
                   onChange={e => setEditGeneralNotes(e.target.value)}
                   placeholder="e.g. Controlled hypertension, Type 2 Diabetes on Metformin, no bleeding disorders"
-                  className="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-lg text-xs focus:bg-white focus:ring-1 focus:ring-blue-700 focus:outline-none"
+                  className="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-lg text-xs focus:bg-white focus:ring-1 focus:ring-blue-800 focus:outline-none"
                 />
                 <p className="text-[10px] text-slate-400 mt-1">
                   Note: Drug allergies are managed in the Allergies tab. This field is for systemic conditions only.

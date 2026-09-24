@@ -139,7 +139,7 @@ export const RemindersHub: React.FC = () => {
                           onClick={() => handleManualSend(rem.id)}
                           disabled={sendingId === rem.id}
                           aria-label={isSent ? `Resend reminder to ${rem.recipient}` : `Send reminder to ${rem.recipient}`}
-                          className="px-3 py-1.5 bg-blue-50 hover:bg-blue-100 text-blue-900 border border-blue-200 rounded-lg text-xs font-semibold flex items-center gap-1 ml-auto shadow-2xs disabled:opacity-50"
+                          className="px-3 py-1.5 bg-blue-50 hover:bg-blue-50 text-blue-800 border border-blue-200 rounded-lg text-xs font-semibold flex items-center gap-1 ml-auto shadow-2xs disabled:opacity-50"
                         >
                           <Send className="w-3 h-3" aria-hidden="true" />
                           <span>{sendingId === rem.id ? 'Sending...' : isSent ? 'Resend' : 'Send Now'}</span>

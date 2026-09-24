@@ -97,7 +97,7 @@ export const PrescriptionsHub: React.FC<PrescriptionsHubProps> = ({
             placeholder="Search prescriptions by patient name, PT#, diagnosis..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className="w-full pl-9 pr-4 py-2 bg-slate-50 border border-slate-300 rounded-lg text-xs focus:bg-white focus:outline-hidden focus:ring-1 focus:ring-blue-700"
+            className="w-full pl-9 pr-4 py-2 bg-slate-50 border border-slate-300 rounded-lg text-xs focus:bg-white focus:outline-hidden focus:ring-1 focus:ring-blue-800"
           />
         </div>
 
@@ -131,7 +131,7 @@ export const PrescriptionsHub: React.FC<PrescriptionsHubProps> = ({
             <div key={rx.id} className="bg-white rounded-xl border border-slate-200 p-5 shadow-2xs space-y-3">
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-slate-100 pb-3">
                 <div className="flex items-center gap-3">
-                  <div className="w-8 h-8 rounded-lg bg-blue-100 text-blue-900 font-bold flex items-center justify-center text-xs">
+                  <div className="w-8 h-8 rounded-lg bg-blue-50 text-blue-800 font-bold flex items-center justify-center text-xs">
                     Rx
                   </div>
                   <div>
@@ -142,7 +142,7 @@ export const PrescriptionsHub: React.FC<PrescriptionsHubProps> = ({
                       >
                         {rx.patient?.firstName} {rx.patient?.lastName}
                       </button>
-                      <span className="font-mono text-[10px] text-blue-900 bg-blue-50 px-1.5 py-0.2 rounded border border-blue-200">
+                      <span className="font-mono text-[10px] text-blue-800 bg-blue-50 px-1.5 py-0.2 rounded border border-blue-200">
                         {rx.patient?.patientNumber}
                       </span>
                       {rx.patient?.allergies && (

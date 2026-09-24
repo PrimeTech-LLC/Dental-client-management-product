@@ -195,11 +195,11 @@ export default function App() {
 
   // ── Main app ─────────────────────────────────────────────────
   return (
-    <div className="h-screen bg-slate-50 text-slate-800 flex overflow-hidden font-sans antialiased selection:bg-blue-100 selection:text-blue-950">
+    <div className="h-screen bg-slate-50 text-slate-800 flex overflow-hidden font-sans antialiased selection:bg-blue-50 selection:text-blue-800">
       {/* ACC-06: Skip navigation link — visible on keyboard focus only */}
       <a
         href="#main-content"
-        className="sr-only focus:not-sr-only focus:absolute focus:top-2 focus:left-2 focus:z-[200] focus:bg-white focus:text-blue-800 focus:font-semibold focus:text-sm focus:px-4 focus:py-2 focus:rounded-lg focus:shadow-lg focus:ring-2 focus:ring-blue-700"
+        className="sr-only focus:not-sr-only focus:absolute focus:top-2 focus:left-2 focus:z-[200] focus:bg-white focus:text-blue-800 focus:font-semibold focus:text-sm focus:px-4 focus:py-2 focus:rounded-lg focus:shadow-lg focus:ring-2 focus:ring-blue-800"
       >
         Skip to main content
       </a>
