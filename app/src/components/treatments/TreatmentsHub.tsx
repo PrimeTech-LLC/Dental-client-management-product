@@ -72,7 +72,7 @@ export const TreatmentsHub: React.FC<TreatmentsHubProps> = ({ onSelectPatient })
       <div className="bg-white p-5 rounded-xl border border-slate-200 shadow-2xs flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
           <div className="flex items-center gap-2">
-            <UserRoundCheck className="w-5 h-5 text-teal-600" />
+            <UserRoundCheck className="w-5 h-5 text-blue-800" />
             <h1 className="text-xl font-bold text-slate-800 tracking-tight">
               Clinical Treatments & Procedures Register
             </h1>
@@ -92,7 +92,7 @@ export const TreatmentsHub: React.FC<TreatmentsHubProps> = ({ onSelectPatient })
             placeholder="Search treatments by patient, procedure, PT#..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className="w-full pl-9 pr-4 py-2 bg-slate-50 border border-slate-300 rounded-lg text-xs focus:bg-white focus:outline-hidden focus:ring-1 focus:ring-teal-500"
+            className="w-full pl-9 pr-4 py-2 bg-slate-50 border border-slate-300 rounded-lg text-xs focus:bg-white focus:outline-hidden focus:ring-1 focus:ring-blue-700"
           />
         </div>
 
@@ -152,7 +152,7 @@ export const TreatmentsHub: React.FC<TreatmentsHubProps> = ({ onSelectPatient })
                     <td className="py-3 px-4 whitespace-nowrap">
                       <button
                         onClick={() => onSelectPatient(t.patientId)}
-                        className="font-bold text-slate-900 hover:text-teal-700 underline text-left"
+                        className="font-bold text-slate-900 hover:text-blue-800 underline text-left"
                       >
                         {t.patient?.firstName} {t.patient?.lastName}
                       </button>

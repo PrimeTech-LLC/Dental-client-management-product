@@ -120,7 +120,7 @@ export const AppointmentsHub: React.FC<AppointmentsHubProps> = ({
       <div className="bg-white p-5 rounded-xl border border-slate-200 shadow-2xs flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
           <div className="flex items-center gap-2">
-            <CalendarDays className="w-5 h-5 text-teal-600" />
+            <CalendarDays className="w-5 h-5 text-blue-800" />
             <h1 className="text-xl font-bold text-slate-800 tracking-tight">
               Appointment Schedule & Operatories
             </h1>
@@ -170,7 +170,7 @@ export const AppointmentsHub: React.FC<AppointmentsHubProps> = ({
 
           <button
             onClick={() => onOpenNewAppointment(selectedDoctorId !== 'ALL' ? selectedDoctorId : undefined, dateStr)}
-            className="flex items-center gap-1.5 px-3.5 py-2 bg-teal-600 hover:bg-teal-700 text-white rounded-lg text-xs font-medium shadow-xs transition-colors"
+            className="flex items-center gap-1.5 px-3.5 py-2 bg-blue-800 hover:bg-blue-900 text-white rounded-lg text-xs font-medium shadow-xs transition-colors"
           >
             <Plus className="w-3.5 h-3.5" />
             <span>Book Appointment</span>
@@ -303,7 +303,7 @@ export const AppointmentsHub: React.FC<AppointmentsHubProps> = ({
                                 <div
                                   key={appt.id}
                                   onClick={() => onSelectAppointment(appt)}
-                                  className="p-2.5 rounded-lg bg-white border border-slate-200 shadow-2xs hover:border-teal-400 hover:shadow-xs transition-all cursor-pointer text-xs"
+                                  className="p-2.5 rounded-lg bg-white border border-slate-200 shadow-2xs hover:border-blue-500 hover:shadow-xs transition-all cursor-pointer text-xs"
                                 >
                                   <div className="flex items-center justify-between">
                                     <span className="font-bold text-slate-900 truncate">
@@ -328,7 +328,7 @@ export const AppointmentsHub: React.FC<AppointmentsHubProps> = ({
                               onClick={() => {
                                 onOpenNewAppointment(doc.id, dateStr);
                               }}
-                              className="w-full h-full min-h-[50px] rounded border border-dashed border-transparent hover:border-slate-300 hover:bg-teal-50/30 transition-all flex items-center justify-center text-slate-300 hover:text-teal-700 text-xs opacity-0 group-hover:opacity-100"
+                              className="w-full h-full min-h-[50px] rounded border border-dashed border-transparent hover:border-slate-300 hover:bg-blue-50/30 transition-all flex items-center justify-center text-slate-300 hover:text-blue-800 text-xs opacity-0 group-hover:opacity-100"
                             >
                               + Book {formatTime(time)}
                             </button>
@@ -355,7 +355,7 @@ export const AppointmentsHub: React.FC<AppointmentsHubProps> = ({
                 const dayAppts = filteredAppointments.filter(a => a.appointmentDate === format(d, 'yyyy-MM-dd'));
 
                 return (
-                  <div key={d.toISOString()} className={`p-3 border-r border-slate-200 last:border-r-0 ${isToday ? 'bg-teal-50/80 text-teal-900' : ''}`}>
+                  <div key={d.toISOString()} className={`p-3 border-r border-slate-200 last:border-r-0 ${isToday ? 'bg-blue-50/80 text-blue-950' : ''}`}>
                     <div className="font-bold text-sm">{format(d, 'EEE')}</div>
                     <div className="text-xs text-slate-500">{format(d, 'MMM dd')}</div>
                     <div className="text-[10px] font-mono mt-1 text-slate-400">
@@ -383,7 +383,7 @@ export const AppointmentsHub: React.FC<AppointmentsHubProps> = ({
                         <div
                           key={appt.id}
                           onClick={() => onSelectAppointment(appt)}
-                          className="p-2 rounded-lg bg-white border border-slate-200 shadow-2xs hover:border-teal-400 transition-all cursor-pointer text-xs space-y-1"
+                          className="p-2 rounded-lg bg-white border border-slate-200 shadow-2xs hover:border-blue-500 transition-all cursor-pointer text-xs space-y-1"
                         >
                           <div className="flex items-center justify-between">
                             <span className="font-mono text-[10px] font-bold text-slate-700">
@@ -442,7 +442,7 @@ export const AppointmentsHub: React.FC<AppointmentsHubProps> = ({
                     <td className="py-3 px-4">
                       <button
                         onClick={() => onSelectPatient(appt.patientId)}
-                        className="font-medium text-slate-900 hover:text-teal-700 underline text-left"
+                        className="font-medium text-slate-900 hover:text-blue-800 underline text-left"
                       >
                         {appt.patient?.firstName} {appt.patient?.lastName}
                       </button>

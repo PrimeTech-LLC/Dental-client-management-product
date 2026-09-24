@@ -94,7 +94,7 @@ export const DentalChart: React.FC<DentalChartProps> = ({
                   type="button"
                   onClick={() => handleToothClick(num)}
                   className={`w-10 h-14 rounded-lg flex flex-col items-center justify-between p-1 transition-all border ${
-                    isSelected ? 'ring-2 ring-teal-600 border-teal-600 scale-105' : 'hover:border-slate-400 border-slate-200'
+                    isSelected ? 'ring-2 ring-blue-800 border-blue-800 scale-105' : 'hover:border-slate-400 border-slate-200'
                   }`}
                   style={{ backgroundColor: data?.condition ? `${color}15` : '#ffffff' }}
                 >
@@ -144,7 +144,7 @@ export const DentalChart: React.FC<DentalChartProps> = ({
                   type="button"
                   onClick={() => handleToothClick(num)}
                   className={`w-10 h-14 rounded-lg flex flex-col items-center justify-between p-1 transition-all border ${
-                    isSelected ? 'ring-2 ring-teal-600 border-teal-600 scale-105' : 'hover:border-slate-400 border-slate-200'
+                    isSelected ? 'ring-2 ring-blue-800 border-blue-800 scale-105' : 'hover:border-slate-400 border-slate-200'
                   }`}
                   style={{ backgroundColor: data?.condition ? `${color}15` : '#ffffff' }}
                 >
@@ -170,7 +170,7 @@ export const DentalChart: React.FC<DentalChartProps> = ({
         <div className="p-4 bg-slate-900 text-slate-100 rounded-xl shadow-lg border border-slate-800 space-y-3">
           <div className="flex items-center justify-between border-b border-slate-800 pb-2">
             <div className="flex items-center gap-2">
-              <span className="font-bold text-teal-400 text-sm">Tooth #{selectedTooth}</span>
+              <span className="font-bold text-blue-500 text-sm">Tooth #{selectedTooth}</span>
               <span className="text-xs text-slate-400">Clinical Notation Editor</span>
             </div>
             <button
@@ -187,7 +187,7 @@ export const DentalChart: React.FC<DentalChartProps> = ({
               <select
                 value={selectedCondition}
                 onChange={(e) => setSelectedCondition(e.target.value as ToothCondition)}
-                className="w-full bg-slate-800 border border-slate-700 text-slate-100 rounded-lg p-2 text-xs focus:ring-1 focus:ring-teal-500 focus:outline-hidden"
+                className="w-full bg-slate-800 border border-slate-700 text-slate-100 rounded-lg p-2 text-xs focus:ring-1 focus:ring-blue-700 focus:outline-hidden"
               >
                 {TOOTH_CONDITIONS.map(c => (
                   <option key={c.value} value={c.value}>{c.label}</option>
@@ -202,7 +202,7 @@ export const DentalChart: React.FC<DentalChartProps> = ({
                 placeholder="e.g. Disto-occlusal cavity, asymptomatic"
                 value={toothNotes}
                 onChange={(e) => setToothNotes(e.target.value)}
-                className="w-full bg-slate-800 border border-slate-700 text-slate-100 rounded-lg p-2 text-xs focus:ring-1 focus:ring-teal-500 focus:outline-hidden"
+                className="w-full bg-slate-800 border border-slate-700 text-slate-100 rounded-lg p-2 text-xs focus:ring-1 focus:ring-blue-700 focus:outline-hidden"
               />
             </div>
           </div>
@@ -225,7 +225,7 @@ export const DentalChart: React.FC<DentalChartProps> = ({
               type="button"
               disabled={isUpdating}
               onClick={handleSaveCondition}
-              className="px-4 py-1.5 bg-teal-600 hover:bg-teal-700 text-white rounded text-xs font-semibold shadow-xs flex items-center gap-1.5"
+              className="px-4 py-1.5 bg-blue-800 hover:bg-blue-900 text-white rounded text-xs font-semibold shadow-xs flex items-center gap-1.5"
             >
               <Check className="w-3.5 h-3.5" />
               <span>{isUpdating ? 'Saving...' : 'Update Tooth Condition'}</span>

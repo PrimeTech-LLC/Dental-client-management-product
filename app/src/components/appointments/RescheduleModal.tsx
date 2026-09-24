@@ -108,7 +108,7 @@ export const RescheduleModal: React.FC<RescheduleModalProps> = ({
         {/* Header */}
         <div className="p-4 border-b border-slate-200 bg-slate-50 flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <RefreshCw className="w-5 h-5 text-teal-600" />
+            <RefreshCw className="w-5 h-5 text-blue-800" />
             <h2 className="text-sm font-bold text-slate-800 uppercase tracking-wide">
               Reschedule Appointment
             </h2>
@@ -149,7 +149,7 @@ export const RescheduleModal: React.FC<RescheduleModalProps> = ({
                 type="date"
                 value={newDate}
                 onChange={(e) => setNewDate(e.target.value)}
-                className="w-full px-3 py-2 bg-white border border-slate-300 rounded-lg text-xs focus:ring-1 focus:ring-teal-500 focus:outline-hidden"
+                className="w-full px-3 py-2 bg-white border border-slate-300 rounded-lg text-xs focus:ring-1 focus:ring-blue-700 focus:outline-hidden"
                 required
               />
             </div>
@@ -161,7 +161,7 @@ export const RescheduleModal: React.FC<RescheduleModalProps> = ({
               <select
                 value={newStartTime}
                 onChange={(e) => setNewStartTime(e.target.value)}
-                className="w-full px-3 py-2 bg-white border border-slate-300 rounded-lg text-xs font-mono focus:ring-1 focus:ring-teal-500 focus:outline-hidden"
+                className="w-full px-3 py-2 bg-white border border-slate-300 rounded-lg text-xs font-mono focus:ring-1 focus:ring-blue-700 focus:outline-hidden"
               >
                 {TIME_SLOTS.map(t => (
                   <option key={t} value={t}>{formatTime(t)} ({t})</option>
@@ -189,7 +189,7 @@ export const RescheduleModal: React.FC<RescheduleModalProps> = ({
                   type="checkbox"
                   checked={allowOverride}
                   onChange={(e) => setAllowOverride(e.target.checked)}
-                  className="rounded text-teal-600 focus:ring-teal-500"
+                  className="rounded text-blue-800 focus:ring-blue-700"
                 />
                 <span>Authorized Override (Allow Conflict)</span>
               </label>
@@ -213,7 +213,7 @@ export const RescheduleModal: React.FC<RescheduleModalProps> = ({
               value={reason}
               onChange={(e) => setReason(e.target.value)}
               placeholder="e.g. Patient called to delay by 2 days, Doctor schedule adjustment"
-              className="w-full px-3 py-2 bg-white border border-slate-300 rounded-lg text-xs focus:ring-1 focus:ring-teal-500 focus:outline-hidden"
+              className="w-full px-3 py-2 bg-white border border-slate-300 rounded-lg text-xs focus:ring-1 focus:ring-blue-700 focus:outline-hidden"
               required
             />
           </div>
@@ -238,7 +238,7 @@ export const RescheduleModal: React.FC<RescheduleModalProps> = ({
               <button
                 type="submit"
                 disabled={submitting || (conflictResult?.hasConflict && !allowOverride)}
-                className="px-5 py-2 bg-teal-600 hover:bg-teal-700 disabled:opacity-50 text-white rounded-lg text-xs font-medium shadow-xs"
+                className="px-5 py-2 bg-blue-800 hover:bg-blue-900 disabled:opacity-50 text-white rounded-lg text-xs font-medium shadow-xs"
               >
                 {submitting ? 'Updating...' : 'Confirm Reschedule'}
               </button>
