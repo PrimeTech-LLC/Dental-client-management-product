@@ -187,12 +187,12 @@ export const GlobalSearchModal: React.FC<GlobalSearchModalProps> = ({
                       onSelectPatient(p.id);
                       onClose();
                     }}
-                    className="w-full text-left p-2.5 rounded-lg hover:bg-teal-50/70 border border-transparent hover:border-teal-200 transition-colors flex items-center justify-between group cursor-pointer"
+                    className="w-full text-left p-2.5 rounded-lg hover:bg-blue-50/70 border border-transparent hover:border-blue-200 transition-colors flex items-center justify-between group cursor-pointer"
                   >
                     <div>
                       <div className="text-xs font-semibold text-slate-800 flex items-center gap-2">
                         <span>{p.firstName} {p.lastName}</span>
-                        <span className="font-mono text-[10px] text-teal-700 bg-teal-50 px-1.5 py-0.5 rounded border border-teal-200">
+                        <span className="font-mono text-[10px] text-blue-800 bg-blue-50 px-1.5 py-0.5 rounded border border-blue-200">
                           {p.patientNumber}
                         </span>
                         {p.allergies && (
@@ -210,7 +210,7 @@ export const GlobalSearchModal: React.FC<GlobalSearchModalProps> = ({
                         <span>Blood: {p.bloodGroup}</span>
                       </div>
                     </div>
-                    <ArrowRight className="w-4 h-4 text-slate-400 group-hover:text-teal-600 opacity-0 group-hover:opacity-100 transition-all" />
+                    <ArrowRight className="w-4 h-4 text-slate-400 group-hover:text-blue-800 opacity-0 group-hover:opacity-100 transition-all" />
                   </button>
                 ))}
               </div>
@@ -286,7 +286,7 @@ export const GlobalSearchModal: React.FC<GlobalSearchModalProps> = ({
         {/* Footer info */}
         <div className="p-2.5 bg-slate-100 border-t border-slate-200 text-[11px] text-slate-500 flex items-center justify-between px-4">
           <span>Tip: Press <kbd className="px-1 py-0.5 bg-white border border-slate-300 rounded font-mono text-[10px]">Esc</kbd> anytime to dismiss search</span>
-          <span className="font-medium text-teal-700">Global Search</span>
+          <span className="font-medium text-blue-800">Global Search</span>
         </div>
       </div>
     </div>

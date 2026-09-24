@@ -57,7 +57,7 @@ export const ReportsHub: React.FC = () => {
       <div className="bg-white p-5 rounded-xl border border-slate-200 shadow-2xs flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
           <div className="flex items-center gap-2">
-            <BarChart3 className="w-5 h-5 text-teal-600" />
+            <BarChart3 className="w-5 h-5 text-blue-800" />
             <h1 className="text-xl font-bold text-slate-800 tracking-tight">
               Clinic Reports & Operatory Analytics
             </h1>
@@ -155,10 +155,10 @@ export const ReportsHub: React.FC = () => {
               <div className="text-[11px] text-slate-400 mt-0.5">Patient drop-offs</div>
             </div>
 
-            <div className="bg-teal-50/70 p-4 rounded-xl border border-teal-200 shadow-2xs">
-              <span className="text-[11px] font-bold uppercase tracking-wider text-teal-800 block">Estimated Revenue</span>
-              <div className="text-2xl font-bold text-teal-900 mt-1">${reports.estimatedRevenue?.toLocaleString() || 0}</div>
-              <div className="text-[11px] text-teal-700 mt-0.5">From treatments delivered</div>
+            <div className="bg-blue-50/70 p-4 rounded-xl border border-blue-200 shadow-2xs">
+              <span className="text-[11px] font-bold uppercase tracking-wider text-blue-900 block">Estimated Revenue</span>
+              <div className="text-2xl font-bold text-blue-950 mt-1">${reports.estimatedRevenue?.toLocaleString() || 0}</div>
+              <div className="text-[11px] text-blue-800 mt-0.5">From treatments delivered</div>
             </div>
           </div>
 
@@ -181,7 +181,7 @@ export const ReportsHub: React.FC = () => {
                       </div>
                       <div className="w-full h-2 bg-slate-100 rounded-full overflow-hidden">
                         <div
-                          className="h-full bg-teal-600 rounded-full"
+                          className="h-full bg-blue-800 rounded-full"
                           style={{ width: `${percent}%` }}
                         ></div>
                       </div>

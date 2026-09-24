@@ -218,7 +218,7 @@ export const DoctorsHub: React.FC = () => {
       <div className="bg-white p-5 rounded-xl border border-slate-200 shadow-2xs flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
           <div className="flex items-center gap-2">
-            <Stethoscope className="w-5 h-5 text-teal-600" />
+            <Stethoscope className="w-5 h-5 text-blue-800" />
             <h1 className="text-xl font-bold text-slate-800 tracking-tight">
               Doctor Roster & Operatory Schedules
             </h1>
@@ -230,7 +230,7 @@ export const DoctorsHub: React.FC = () => {
 
         <button
           onClick={handleOpenCreateDoctor}
-          className="flex items-center gap-1.5 px-3.5 py-2 bg-teal-600 hover:bg-teal-700 text-white rounded-lg text-xs font-medium shadow-xs transition-colors self-start md:self-auto"
+          className="flex items-center gap-1.5 px-3.5 py-2 bg-blue-800 hover:bg-blue-900 text-white rounded-lg text-xs font-medium shadow-xs transition-colors self-start md:self-auto"
         >
           <Plus className="w-3.5 h-3.5" />
           <span>+ Add New Doctor</span>
@@ -255,7 +255,7 @@ export const DoctorsHub: React.FC = () => {
                   onClick={() => handleSelectDoctor(doc.id)}
                   className={`p-4 rounded-xl border transition-all cursor-pointer bg-white shadow-2xs ${
                     isSelected
-                      ? 'border-teal-500 ring-2 ring-teal-500/20'
+                      ? 'border-blue-700 ring-2 ring-blue-700/20'
                       : 'border-slate-200 hover:border-slate-300'
                   }`}
                 >
@@ -311,7 +311,7 @@ export const DoctorsHub: React.FC = () => {
                         handleToggleActive(doc);
                       }}
                       className={`text-[10px] font-semibold underline ${
-                        doc.isActive ? 'text-rose-600 hover:text-rose-700' : 'text-teal-700 hover:text-teal-800'
+                        doc.isActive ? 'text-rose-600 hover:text-rose-700' : 'text-blue-800 hover:text-blue-900'
                       }`}
                     >
                       {doc.isActive ? 'Deactivate' : 'Reactivate'}
@@ -388,7 +388,7 @@ export const DoctorsHub: React.FC = () => {
                           type="checkbox"
                           checked={isAvailable}
                           onChange={(e) => handleToggleDayAvailability(day, e.target.checked)}
-                          className="rounded text-teal-600 focus:ring-teal-500"
+                          className="rounded text-blue-800 focus:ring-blue-700"
                         />
                         <span className={`font-semibold ${isAvailable ? 'text-slate-800' : 'text-slate-400'}`}>
                           {label}
@@ -422,7 +422,7 @@ export const DoctorsHub: React.FC = () => {
                 </div>
                 <button
                   onClick={() => setShowExceptionModal(true)}
-                  className="px-3 py-1.5 bg-teal-50 hover:bg-teal-100 text-teal-800 rounded-lg text-xs font-medium border border-teal-200 flex items-center gap-1"
+                  className="px-3 py-1.5 bg-blue-50 hover:bg-blue-100 text-blue-900 rounded-lg text-xs font-medium border border-blue-200 flex items-center gap-1"
                 >
                   <Plus className="w-3.5 h-3.5" />
                   <span>+ Add Time Off</span>
@@ -545,7 +545,7 @@ export const DoctorsHub: React.FC = () => {
                 type="checkbox"
                 checked={formActive}
                 onChange={(e) => setFormActive(e.target.checked)}
-                className="rounded text-teal-600"
+                className="rounded text-blue-800"
               />
               <span>Doctor is Active on Clinical Schedule</span>
             </label>
@@ -558,7 +558,7 @@ export const DoctorsHub: React.FC = () => {
 
             <div className="flex justify-end gap-2 pt-2 border-t border-slate-100">
               <button type="button" onClick={() => setShowDoctorModal(false)} className="px-3 py-1.5 bg-slate-100 rounded text-slate-700">Cancel</button>
-              <button type="submit" className="px-4 py-1.5 bg-teal-600 text-white rounded font-semibold shadow-xs">Save Doctor</button>
+              <button type="submit" className="px-4 py-1.5 bg-blue-800 text-white rounded font-semibold shadow-xs">Save Doctor</button>
             </div>
           </form>
         </div>
@@ -592,7 +592,7 @@ export const DoctorsHub: React.FC = () => {
             </div>
             <div className="flex justify-end gap-2 pt-2">
               <button type="button" onClick={() => setShowExceptionModal(false)} className="px-3 py-1.5 bg-slate-100 rounded text-slate-700">Cancel</button>
-              <button type="submit" className="px-4 py-1.5 bg-teal-600 text-white rounded font-medium">Add Exception</button>
+              <button type="submit" className="px-4 py-1.5 bg-blue-800 text-white rounded font-medium">Add Exception</button>
             </div>
           </form>
         </div>

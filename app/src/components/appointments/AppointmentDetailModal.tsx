@@ -65,7 +65,7 @@ export const AppointmentDetailModal: React.FC<AppointmentDetailModalProps> = ({
         {/* Header */}
         <div className="p-4 border-b border-slate-200 bg-slate-50 flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <Calendar className="w-5 h-5 text-teal-600" />
+            <Calendar className="w-5 h-5 text-blue-800" />
             <h2 className="text-sm font-bold text-slate-800 uppercase tracking-wide">
               Appointment Details
             </h2>
@@ -110,7 +110,7 @@ export const AppointmentDetailModal: React.FC<AppointmentDetailModalProps> = ({
               </span>
               <button
                 onClick={() => { onSelectPatient(appointment.patientId); onClose(); }}
-                className="text-teal-700 hover:text-teal-800 font-semibold text-[11px] underline"
+                className="text-blue-800 hover:text-blue-900 font-semibold text-[11px] underline"
               >
                 View Full Patient Chart →
               </button>
@@ -119,7 +119,7 @@ export const AppointmentDetailModal: React.FC<AppointmentDetailModalProps> = ({
               {appointment.patient?.firstName} {appointment.patient?.lastName}
             </div>
             <div className="flex items-center gap-3 text-slate-600 text-[11px]">
-              <span className="font-mono text-teal-800 bg-teal-50 px-1.5 py-0.5 rounded border border-teal-200">
+              <span className="font-mono text-blue-900 bg-blue-50 px-1.5 py-0.5 rounded border border-blue-200">
                 {appointment.patient?.patientNumber}
               </span>
               <span className="flex items-center gap-1">

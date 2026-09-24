@@ -202,7 +202,7 @@ export const ReceptionistDashboard: React.FC<ReceptionistDashboardProps> = ({
               <select
                 value={doctorFilter}
                 onChange={(e) => setDoctorFilter(e.target.value)}
-                className="px-3 py-1.5 text-xs bg-slate-50 border border-slate-200 rounded-md text-slate-700 hover:bg-slate-100 focus:outline-none focus:ring-1 focus:ring-teal-500 cursor-pointer"
+                className="px-3 py-1.5 text-xs bg-slate-50 border border-slate-200 rounded-md text-slate-700 hover:bg-slate-100 focus:outline-none focus:ring-1 focus:ring-blue-700 cursor-pointer"
               >
                 <option value="ALL">All Doctors</option>
                 {doctors.map(d => (
@@ -213,7 +213,7 @@ export const ReceptionistDashboard: React.FC<ReceptionistDashboardProps> = ({
               <select
                 value={statusFilter}
                 onChange={(e) => setStatusFilter(e.target.value)}
-                className="px-3 py-1.5 text-xs bg-slate-50 border border-slate-200 rounded-md text-slate-700 hover:bg-slate-100 focus:outline-none focus:ring-1 focus:ring-teal-500 cursor-pointer"
+                className="px-3 py-1.5 text-xs bg-slate-50 border border-slate-200 rounded-md text-slate-700 hover:bg-slate-100 focus:outline-none focus:ring-1 focus:ring-blue-700 cursor-pointer"
               >
                 <option value="ALL">All Statuses</option>
                 <option value="SCHEDULED">Scheduled</option>
@@ -289,7 +289,7 @@ export const ReceptionistDashboard: React.FC<ReceptionistDashboardProps> = ({
                       <tr
                         key={appt.id}
                         className={`transition-colors hover:bg-slate-50/80 ${
-                          isInProgress ? 'bg-teal-50/30' : isArrived ? 'bg-amber-50/30' : ''
+                          isInProgress ? 'bg-blue-50/30' : isArrived ? 'bg-amber-50/30' : ''
                         }`}
                       >
                         {/* Time */}
@@ -302,7 +302,7 @@ export const ReceptionistDashboard: React.FC<ReceptionistDashboardProps> = ({
                         <td className="px-6 py-4">
                           <div
                             onClick={() => onSelectPatient(appt.patientId)}
-                            className="font-medium text-slate-900 hover:text-teal-600 hover:underline cursor-pointer"
+                            className="font-medium text-slate-900 hover:text-blue-800 hover:underline cursor-pointer"
                           >
                             {appt.patient?.firstName} {appt.patient?.lastName}
                           </div>
@@ -345,7 +345,7 @@ export const ReceptionistDashboard: React.FC<ReceptionistDashboardProps> = ({
                               Completed
                             </span>
                           ) : isInProgress ? (
-                            <span className="px-2 py-1 bg-teal-600 text-white text-[10px] font-bold rounded uppercase border border-teal-700 shadow-xs">
+                            <span className="px-2 py-1 bg-blue-800 text-white text-[10px] font-bold rounded uppercase border border-blue-900 shadow-xs">
                               In Progress
                             </span>
                           ) : isArrived ? (
@@ -353,7 +353,7 @@ export const ReceptionistDashboard: React.FC<ReceptionistDashboardProps> = ({
                               Arrived
                             </span>
                           ) : appt.status === 'CONFIRMED' ? (
-                            <span className="px-2 py-1 bg-teal-50 text-teal-700 text-[10px] font-bold rounded uppercase border border-teal-200">
+                            <span className="px-2 py-1 bg-blue-50 text-blue-800 text-[10px] font-bold rounded uppercase border border-blue-200">
                               Confirmed
                             </span>
                           ) : appt.status === 'CANCELLED' ? (
@@ -373,7 +373,7 @@ export const ReceptionistDashboard: React.FC<ReceptionistDashboardProps> = ({
                             {appt.status === 'SCHEDULED' && (
                               <button
                                 onClick={() => handleStatusUpdate(appt.id, 'ARRIVED')}
-                                className="text-teal-600 hover:text-teal-800 hover:underline font-medium text-xs cursor-pointer"
+                                className="text-blue-800 hover:text-blue-900 hover:underline font-medium text-xs cursor-pointer"
                               >
                                 Arrival
                               </button>
@@ -382,7 +382,7 @@ export const ReceptionistDashboard: React.FC<ReceptionistDashboardProps> = ({
                             {appt.status === 'CONFIRMED' && (
                               <button
                                 onClick={() => handleStatusUpdate(appt.id, 'ARRIVED')}
-                                className="text-teal-600 hover:text-teal-800 hover:underline font-medium text-xs cursor-pointer"
+                                className="text-blue-800 hover:text-blue-900 hover:underline font-medium text-xs cursor-pointer"
                               >
                                 Arrival
                               </button>
@@ -391,7 +391,7 @@ export const ReceptionistDashboard: React.FC<ReceptionistDashboardProps> = ({
                             {appt.status === 'ARRIVED' && (
                               <button
                                 onClick={() => handleStatusUpdate(appt.id, 'IN_PROGRESS')}
-                                className="text-teal-600 hover:text-teal-800 hover:underline font-medium text-xs cursor-pointer"
+                                className="text-blue-800 hover:text-blue-900 hover:underline font-medium text-xs cursor-pointer"
                               >
                                 Start Visit
                               </button>
@@ -417,7 +417,7 @@ export const ReceptionistDashboard: React.FC<ReceptionistDashboardProps> = ({
                             {/* Print Token */}
                             <button
                               onClick={() => onOpenPrintCenter('AppointmentCard', appt, appt.patientId)}
-                              className="text-slate-400 hover:text-teal-600 p-1 cursor-pointer"
+                              className="text-slate-400 hover:text-blue-800 p-1 cursor-pointer"
                               title="Print Card"
                             >
                               <Printer className="w-3.5 h-3.5" />
@@ -516,7 +516,7 @@ export const ReceptionistDashboard: React.FC<ReceptionistDashboardProps> = ({
                 className="w-full text-left p-3 text-xs font-medium hover:bg-slate-50 border border-slate-100 rounded flex items-center justify-between group cursor-pointer"
               >
                 <span className="text-slate-700">Print Prescriptions</span>
-                <Printer className="w-3.5 h-3.5 text-slate-400 group-hover:text-teal-600 transition-colors" />
+                <Printer className="w-3.5 h-3.5 text-slate-400 group-hover:text-blue-800 transition-colors" />
               </button>
 
               <button
@@ -524,7 +524,7 @@ export const ReceptionistDashboard: React.FC<ReceptionistDashboardProps> = ({
                 className="w-full text-left p-3 text-xs font-medium hover:bg-slate-50 border border-slate-100 rounded flex items-center justify-between group cursor-pointer"
               >
                 <span className="text-slate-700">Appointment Cards</span>
-                <Calendar className="w-3.5 h-3.5 text-slate-400 group-hover:text-teal-600 transition-colors" />
+                <Calendar className="w-3.5 h-3.5 text-slate-400 group-hover:text-blue-800 transition-colors" />
               </button>
 
               <button
@@ -532,7 +532,7 @@ export const ReceptionistDashboard: React.FC<ReceptionistDashboardProps> = ({
                 className="w-full text-left p-3 text-xs font-medium hover:bg-slate-50 border border-slate-100 rounded flex items-center justify-between group cursor-pointer"
               >
                 <span className="text-slate-700">Patient Histories</span>
-                <FileText className="w-3.5 h-3.5 text-slate-400 group-hover:text-teal-600 transition-colors" />
+                <FileText className="w-3.5 h-3.5 text-slate-400 group-hover:text-blue-800 transition-colors" />
               </button>
 
               <button
@@ -540,13 +540,13 @@ export const ReceptionistDashboard: React.FC<ReceptionistDashboardProps> = ({
                 className="w-full text-left p-3 text-xs font-medium hover:bg-slate-50 border border-slate-100 rounded flex items-center justify-between group cursor-pointer"
               >
                 <span className="text-slate-700">Daily Audit Logs</span>
-                <Clock className="w-3.5 h-3.5 text-slate-400 group-hover:text-teal-600 transition-colors" />
+                <Clock className="w-3.5 h-3.5 text-slate-400 group-hover:text-blue-800 transition-colors" />
               </button>
             </div>
 
             <div className="mt-4 p-3 bg-slate-50 rounded-lg text-center border border-slate-100">
               <p className="text-[10px] text-slate-500 font-medium">Connected to Local Database</p>
-              <p className="text-[10px] text-teal-600 font-mono">Sync Active: {format(new Date(), 'HH:mm:ss')}</p>
+              <p className="text-[10px] text-blue-800 font-mono">Sync Active: {format(new Date(), 'HH:mm:ss')}</p>
             </div>
           </div>
         </div>

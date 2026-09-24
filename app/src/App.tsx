@@ -181,7 +181,7 @@ export default function App() {
     return (
       <div className="h-screen flex items-center justify-center bg-slate-50">
         <div className="flex flex-col items-center gap-3">
-          <div className="w-8 h-8 border-2 border-teal-600 border-t-transparent rounded-full animate-spin" />
+          <div className="w-8 h-8 border-2 border-blue-800 border-t-transparent rounded-full animate-spin" />
           <p className="text-xs text-slate-500 font-medium">Loading...</p>
         </div>
       </div>
@@ -195,11 +195,11 @@ export default function App() {
 
   // ── Main app ─────────────────────────────────────────────────
   return (
-    <div className="h-screen bg-slate-50 text-slate-800 flex overflow-hidden font-sans antialiased selection:bg-teal-100 selection:text-teal-900">
+    <div className="h-screen bg-slate-50 text-slate-800 flex overflow-hidden font-sans antialiased selection:bg-blue-100 selection:text-blue-950">
       {/* ACC-06: Skip navigation link — visible on keyboard focus only */}
       <a
         href="#main-content"
-        className="sr-only focus:not-sr-only focus:absolute focus:top-2 focus:left-2 focus:z-[200] focus:bg-white focus:text-teal-700 focus:font-semibold focus:text-sm focus:px-4 focus:py-2 focus:rounded-lg focus:shadow-lg focus:ring-2 focus:ring-teal-500"
+        className="sr-only focus:not-sr-only focus:absolute focus:top-2 focus:left-2 focus:z-[200] focus:bg-white focus:text-blue-800 focus:font-semibold focus:text-sm focus:px-4 focus:py-2 focus:rounded-lg focus:shadow-lg focus:ring-2 focus:ring-blue-700"
       >
         Skip to main content
       </a>

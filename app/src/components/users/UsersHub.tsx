@@ -113,7 +113,7 @@ export const UsersHub: React.FC<UsersHubProps> = ({ currentUserId }) => {
       <div className="bg-white p-5 rounded-xl border border-slate-200 shadow-2xs flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <div className="flex items-center gap-2">
-            <Users className="w-5 h-5 text-teal-600" />
+            <Users className="w-5 h-5 text-blue-800" />
             <h1 className="text-xl font-bold text-slate-800 tracking-tight">Staff Management</h1>
           </div>
           <p className="text-xs text-slate-500 mt-1">
@@ -123,7 +123,7 @@ export const UsersHub: React.FC<UsersHubProps> = ({ currentUserId }) => {
 
         <button
           onClick={openCreate}
-          className="flex items-center gap-1.5 px-3.5 py-2 bg-teal-600 hover:bg-teal-700 text-white rounded-lg text-xs font-medium shadow-xs transition-colors self-start sm:self-auto"
+          className="flex items-center gap-1.5 px-3.5 py-2 bg-blue-800 hover:bg-blue-900 text-white rounded-lg text-xs font-medium shadow-xs transition-colors self-start sm:self-auto"
         >
           <Plus className="w-3.5 h-3.5" />
           <span>Add Receptionist</span>
@@ -131,8 +131,8 @@ export const UsersHub: React.FC<UsersHubProps> = ({ currentUserId }) => {
       </div>
 
       {/* Info banner — no hardcoded credentials */}
-      <div className="flex items-start gap-3 p-3.5 bg-teal-50 border border-teal-200 rounded-xl text-xs text-teal-900">
-        <ShieldCheck className="w-4 h-4 text-teal-600 shrink-0 mt-0.5" />
+      <div className="flex items-start gap-3 p-3.5 bg-blue-50 border border-blue-200 rounded-xl text-xs text-blue-950">
+        <ShieldCheck className="w-4 h-4 text-blue-800 shrink-0 mt-0.5" />
         <div>
           New accounts are created with a temporary password.{' '}
           Staff will be prompted to set a new password on first login.
@@ -161,13 +161,13 @@ export const UsersHub: React.FC<UsersHubProps> = ({ currentUserId }) => {
                 <tr key={user.id} className="hover:bg-slate-50 transition-colors">
                   <td className="py-3 px-4">
                     <div className="flex items-center gap-2.5">
-                      <div className="w-7 h-7 rounded-full bg-teal-100 text-teal-700 font-bold text-xs flex items-center justify-center border border-teal-200">
+                      <div className="w-7 h-7 rounded-full bg-blue-100 text-blue-800 font-bold text-xs flex items-center justify-center border border-blue-200">
                         {user.name.charAt(0).toUpperCase()}
                       </div>
                       <div>
                         <span className="font-semibold text-slate-800">{user.name}</span>
                         {user.id === currentUserId && (
-                          <span className="ml-1.5 text-[10px] bg-teal-100 text-teal-700 px-1.5 py-0.5 rounded font-medium">You</span>
+                          <span className="ml-1.5 text-[10px] bg-blue-100 text-blue-800 px-1.5 py-0.5 rounded font-medium">You</span>
                         )}
                       </div>
                     </div>
@@ -195,7 +195,7 @@ export const UsersHub: React.FC<UsersHubProps> = ({ currentUserId }) => {
                     <div className="flex items-center justify-end gap-1">
                       <button
                         onClick={() => openEdit(user)}
-                        className="p-1.5 text-slate-400 hover:text-teal-600 hover:bg-teal-50 rounded transition-colors"
+                        className="p-1.5 text-slate-400 hover:text-blue-800 hover:bg-blue-50 rounded transition-colors"
                         title="Edit"
                       >
                         <Pencil className="w-3.5 h-3.5" />
@@ -225,7 +225,7 @@ export const UsersHub: React.FC<UsersHubProps> = ({ currentUserId }) => {
             {/* Modal Header */}
             <div className="p-4 border-b border-slate-200 bg-slate-50 flex items-center justify-between">
               <div className="flex items-center gap-2">
-                <Users className="w-4 h-4 text-teal-600" />
+                <Users className="w-4 h-4 text-blue-800" />
                 <h2 className="text-sm font-bold text-slate-800">
                   {editingUser ? 'Edit Receptionist Account' : 'Add New Receptionist'}
                 </h2>
@@ -245,7 +245,7 @@ export const UsersHub: React.FC<UsersHubProps> = ({ currentUserId }) => {
                   placeholder="e.g. Saad"
                   value={formName}
                   onChange={e => setFormName(e.target.value)}
-                  className="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-lg text-xs focus:bg-white focus:ring-1 focus:ring-teal-500 focus:outline-none"
+                  className="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-lg text-xs focus:bg-white focus:ring-1 focus:ring-blue-700 focus:outline-none"
                 />
               </div>
 
@@ -257,7 +257,7 @@ export const UsersHub: React.FC<UsersHubProps> = ({ currentUserId }) => {
                   placeholder="e.g. saad@apexdentalcare.com"
                   value={formEmail}
                   onChange={e => setFormEmail(e.target.value)}
-                  className="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-lg text-xs focus:bg-white focus:ring-1 focus:ring-teal-500 focus:outline-none"
+                  className="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-lg text-xs focus:bg-white focus:ring-1 focus:ring-blue-700 focus:outline-none"
                 />
               </div>
 
@@ -273,7 +273,7 @@ export const UsersHub: React.FC<UsersHubProps> = ({ currentUserId }) => {
                     minLength={editingUser ? undefined : 8}
                     value={formPassword}
                     onChange={e => setFormPassword(e.target.value)}
-                    className="w-full px-3 py-2 pr-9 bg-slate-50 border border-slate-300 rounded-lg text-xs focus:bg-white focus:ring-1 focus:ring-teal-500 focus:outline-none"
+                    className="w-full px-3 py-2 pr-9 bg-slate-50 border border-slate-300 rounded-lg text-xs focus:bg-white focus:ring-1 focus:ring-blue-700 focus:outline-none"
                   />
                   <button
                     type="button"
@@ -292,7 +292,7 @@ export const UsersHub: React.FC<UsersHubProps> = ({ currentUserId }) => {
                     type="checkbox"
                     checked={formActive}
                     onChange={e => setFormActive(e.target.checked)}
-                    className="rounded text-teal-600 focus:ring-teal-500"
+                    className="rounded text-blue-800 focus:ring-blue-700"
                   />
                   <span>Account is Active</span>
                 </label>
@@ -315,7 +315,7 @@ export const UsersHub: React.FC<UsersHubProps> = ({ currentUserId }) => {
                 <button
                   type="submit"
                   disabled={saving}
-                  className="px-4 py-1.5 bg-teal-600 hover:bg-teal-700 disabled:opacity-50 text-white rounded-lg text-xs font-semibold shadow-xs flex items-center gap-1.5"
+                  className="px-4 py-1.5 bg-blue-800 hover:bg-blue-900 disabled:opacity-50 text-white rounded-lg text-xs font-semibold shadow-xs flex items-center gap-1.5"
                 >
                   {saving ? (
                     <div className="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin" />

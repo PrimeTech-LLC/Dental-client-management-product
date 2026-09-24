@@ -113,7 +113,7 @@ export const ConfirmDialog: React.FC<ConfirmDialogProps> = ({
   const confirmBg =
     variant === 'danger'  ? 'bg-rose-600 hover:bg-rose-700' :
     variant === 'warning' ? 'bg-amber-600 hover:bg-amber-700' :
-                            'bg-teal-600 hover:bg-teal-700';
+                            'bg-blue-800 hover:bg-blue-900';
 
   return (
     <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-xs z-[9999] flex items-center justify-center p-4">

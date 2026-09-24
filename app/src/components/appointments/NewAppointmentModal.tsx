@@ -208,7 +208,7 @@ export const NewAppointmentModal: React.FC<NewAppointmentModalProps> = ({
           {/* Header */}
           <div className="p-4 border-b border-slate-200 bg-slate-50 flex items-center justify-between">
             <div className="flex items-center gap-2">
-              <Calendar className="w-5 h-5 text-teal-600" />
+              <Calendar className="w-5 h-5 text-blue-800" />
               <h2 className="text-sm font-bold text-slate-800 uppercase tracking-wide">
                 Schedule New Appointment
               </h2>
@@ -230,18 +230,18 @@ export const NewAppointmentModal: React.FC<NewAppointmentModalProps> = ({
                 </label>
                 {onOpenNewPatientInline && (
                   <button type="button" onClick={onOpenNewPatientInline}
-                    className="text-teal-700 hover:text-teal-800 font-semibold text-[11px] flex items-center gap-1">
+                    className="text-blue-800 hover:text-blue-900 font-semibold text-[11px] flex items-center gap-1">
                     <UserPlus className="w-3 h-3" /><span>+ Quick Register</span>
                   </button>
                 )}
               </div>
 
               {selectedPatient ? (
-                <div className="p-3 rounded-lg bg-teal-50/80 border border-teal-200 flex items-center justify-between">
+                <div className="p-3 rounded-lg bg-blue-50/80 border border-blue-200 flex items-center justify-between">
                   <div>
                     <div className="font-semibold text-slate-900 flex items-center gap-2 flex-wrap">
                       <span>{selectedPatient.firstName} {selectedPatient.lastName}</span>
-                      <span className="font-mono text-[10px] text-teal-800 bg-teal-100 px-1.5 py-0.5 rounded">
+                      <span className="font-mono text-[10px] text-blue-900 bg-blue-100 px-1.5 py-0.5 rounded">
                         {selectedPatient.patientNumber}
                       </span>
                       {selectedPatient.allergies && (
@@ -263,7 +263,7 @@ export const NewAppointmentModal: React.FC<NewAppointmentModalProps> = ({
                 <div className="space-y-2">
                   <input type="text" placeholder="Search by name, phone, or PT-000001…"
                     value={patientSearch} onChange={e => setPatientSearch(e.target.value)}
-                    className="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-lg text-xs focus:bg-white focus:outline-none focus:ring-1 focus:ring-teal-500" />
+                    className="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-lg text-xs focus:bg-white focus:outline-none focus:ring-1 focus:ring-blue-700" />
                   {patients.length > 0 && (
                     <div className="max-h-36 overflow-y-auto border border-slate-200 rounded-lg divide-y divide-slate-100 bg-white">
                       {patients.map(p => (
@@ -275,7 +275,7 @@ export const NewAppointmentModal: React.FC<NewAppointmentModalProps> = ({
                             <span className="ml-2 font-mono text-[10px] text-slate-500">{p.patientNumber}</span>
                             <span className="ml-3 text-[11px] text-slate-400">{p.phone}</span>
                           </div>
-                          <span className="text-[10px] text-teal-700 font-medium">Select</span>
+                          <span className="text-[10px] text-blue-800 font-medium">Select</span>
                         </button>
                       ))}
                     </div>
@@ -289,7 +289,7 @@ export const NewAppointmentModal: React.FC<NewAppointmentModalProps> = ({
               <div>
                 <label className="font-semibold text-slate-700 block mb-1">2. Attending Doctor *</label>
                 <select value={doctorId} onChange={e => setDoctorId(e.target.value)}
-                  className="w-full px-3 py-2 bg-white border border-slate-300 rounded-lg text-xs focus:ring-1 focus:ring-teal-500 focus:outline-none">
+                  className="w-full px-3 py-2 bg-white border border-slate-300 rounded-lg text-xs focus:ring-1 focus:ring-blue-700 focus:outline-none">
                   {doctors.map(d => (
                     <option key={d.id} value={d.id}>{d.fullName} ({d.specialization})</option>
                   ))}
@@ -300,7 +300,7 @@ export const NewAppointmentModal: React.FC<NewAppointmentModalProps> = ({
                 {/* BUG-02: min=today so past dates require deliberate choice */}
                 <input type="date" value={appointmentDate} min={today}
                   onChange={e => { setAppointmentDate(e.target.value); setPendingOverride(false); }}
-                  className="w-full px-3 py-2 bg-white border border-slate-300 rounded-lg text-xs focus:ring-1 focus:ring-teal-500 focus:outline-none" />
+                  className="w-full px-3 py-2 bg-white border border-slate-300 rounded-lg text-xs focus:ring-1 focus:ring-blue-700 focus:outline-none" />
                 {/* BUG-02: show warning for past dates (still allow them for backfilling) */}
                 {isPastDate && (
                   <p className="mt-1 text-[10px] text-amber-700 flex items-center gap-1">
@@ -316,14 +316,14 @@ export const NewAppointmentModal: React.FC<NewAppointmentModalProps> = ({
               <div>
                 <label className="font-semibold text-slate-700 block mb-1">Start Time *</label>
                 <select value={startTime} onChange={e => setStartTime(e.target.value)}
-                  className="w-full px-3 py-2 bg-white border border-slate-300 rounded-lg text-xs font-mono focus:ring-1 focus:ring-teal-500 focus:outline-none">
+                  className="w-full px-3 py-2 bg-white border border-slate-300 rounded-lg text-xs font-mono focus:ring-1 focus:ring-blue-700 focus:outline-none">
                   {TIME_SLOTS.map(t => <option key={t} value={t}>{formatTime(t)} ({t})</option>)}
                 </select>
               </div>
               <div>
                 <label className="font-semibold text-slate-700 block mb-1">Duration</label>
                 <select value={durationMinutes} onChange={e => setDurationMinutes(Number(e.target.value))}
-                  className="w-full px-3 py-2 bg-white border border-slate-300 rounded-lg text-xs focus:ring-1 focus:ring-teal-500 focus:outline-none">
+                  className="w-full px-3 py-2 bg-white border border-slate-300 rounded-lg text-xs focus:ring-1 focus:ring-blue-700 focus:outline-none">
                   {DURATION_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
                 </select>
               </div>
@@ -371,7 +371,7 @@ export const NewAppointmentModal: React.FC<NewAppointmentModalProps> = ({
               <div>
                 <label className="font-semibold text-slate-700 block mb-1">Appointment Type *</label>
                 <select value={appointmentType} onChange={e => setAppointmentType(e.target.value as AppointmentType)}
-                  className="w-full px-3 py-2 bg-white border border-slate-300 rounded-lg text-xs focus:ring-1 focus:ring-teal-500 focus:outline-none">
+                  className="w-full px-3 py-2 bg-white border border-slate-300 rounded-lg text-xs focus:ring-1 focus:ring-blue-700 focus:outline-none">
                   {APPOINTMENT_TYPES.map(t => <option key={t} value={t}>{t}</option>)}
                 </select>
               </div>
@@ -379,7 +379,7 @@ export const NewAppointmentModal: React.FC<NewAppointmentModalProps> = ({
                 <label className="font-semibold text-slate-700 block mb-1">Reason / Chief Complaint</label>
                 <input type="text" value={reason} onChange={e => setReason(e.target.value)}
                   placeholder="e.g. Tooth pain, routine cleaning…"
-                  className="w-full px-3 py-2 bg-white border border-slate-300 rounded-lg text-xs focus:ring-1 focus:ring-teal-500 focus:outline-none" />
+                  className="w-full px-3 py-2 bg-white border border-slate-300 rounded-lg text-xs focus:ring-1 focus:ring-blue-700 focus:outline-none" />
               </div>
             </div>
 
@@ -387,7 +387,7 @@ export const NewAppointmentModal: React.FC<NewAppointmentModalProps> = ({
               <label className="font-semibold text-slate-700 block mb-1">Internal Notes</label>
               <input type="text" value={notes} onChange={e => setNotes(e.target.value)}
                 placeholder="Any internal scheduling notes…"
-                className="w-full px-3 py-2 bg-white border border-slate-300 rounded-lg text-xs focus:ring-1 focus:ring-teal-500 focus:outline-none" />
+                className="w-full px-3 py-2 bg-white border border-slate-300 rounded-lg text-xs focus:ring-1 focus:ring-blue-700 focus:outline-none" />
             </div>
 
             {/* Footer */}
@@ -398,7 +398,7 @@ export const NewAppointmentModal: React.FC<NewAppointmentModalProps> = ({
               </button>
               <button type="submit"
                 disabled={submitting || !selectedPatient || !doctorId || loadingInitial}
-                className="px-5 py-2 bg-teal-600 hover:bg-teal-700 disabled:opacity-50 text-white rounded-lg text-xs font-semibold shadow-xs flex items-center gap-1.5">
+                className="px-5 py-2 bg-blue-800 hover:bg-blue-900 disabled:opacity-50 text-white rounded-lg text-xs font-semibold shadow-xs flex items-center gap-1.5">
                 {submitting
                   ? <><div className="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin" /><span>Saving…</span></>
                   : <><Check className="w-3.5 h-3.5" /><span>Book Appointment</span></>
