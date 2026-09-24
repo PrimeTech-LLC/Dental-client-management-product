@@ -32,7 +32,7 @@ CREATE TABLE IF NOT EXISTS doctors (
   email           TEXT NOT NULL,
   profile_image   TEXT,
   bio             TEXT,
-  color           TEXT NOT NULL DEFAULT '#0d9488',
+  color           TEXT NOT NULL DEFAULT '#1e3a8a',
   is_active       BOOLEAN NOT NULL DEFAULT true,
   created_at      TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   updated_at      TIMESTAMPTZ NOT NULL DEFAULT NOW()

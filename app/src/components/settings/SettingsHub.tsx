@@ -97,7 +97,7 @@ export const SettingsHub: React.FC = () => {
       <div className="bg-white p-5 rounded-xl border border-slate-200 shadow-2xs flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <div className="flex items-center gap-2">
-            <Settings className="w-5 h-5 text-teal-600" />
+            <Settings className="w-5 h-5" style={{ color: '#1e3a8a' }} />
             <h1 className="text-xl font-bold text-slate-800 tracking-tight">
               Clinic Configuration & Practice Identity
             </h1>
@@ -288,7 +288,10 @@ export const SettingsHub: React.FC = () => {
           <button
             type="submit"
             disabled={saving}
-            className="px-6 py-2.5 bg-teal-600 hover:bg-teal-700 text-white rounded-lg font-bold text-xs shadow-xs flex items-center gap-2 transition-colors"
+            className="px-6 py-2.5 text-white rounded-lg font-bold text-xs shadow-xs flex items-center gap-2 transition-colors"
+            style={{ backgroundColor: '#1e3a8a' }}
+            onMouseEnter={e => (e.currentTarget as HTMLButtonElement).style.backgroundColor = '#1e40af'}
+            onMouseLeave={e => (e.currentTarget as HTMLButtonElement).style.backgroundColor = '#1e3a8a'}
           >
             <Save className="w-4 h-4" />
             <span>{saving ? 'Saving Changes...' : 'Save Configuration'}</span>

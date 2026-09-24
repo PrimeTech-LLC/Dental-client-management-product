@@ -9,12 +9,10 @@
   }
 
   /* ACC-11: Consistent, high-contrast focus indicator for all interactive elements.
-     Removes browser default (which varies per UA) and replaces with a visible
-     teal ring. Only shows on keyboard focus (not click) via :focus-visible.
-     Components that already supply focus:ring-* are not overridden because
-     Tailwind's ring utilities set outline:none — they provide their own visible ring. */
+     Navy blue ring replaces the previous teal ring to match the brand palette.
+     Only shows on keyboard focus (not click) via :focus-visible. */
   :focus-visible {
-    outline: 2px solid #0d9488; /* teal-600 */
+    outline: 2px solid #1e3a8a; /* navy blue-800 */
     outline-offset: 2px;
     border-radius: 3px;
   }
@@ -26,18 +24,47 @@
   }
 }
 
+/* ── Brand color utilities (navy blue palette) ─────────────────────────────── */
+/* These supplement Tailwind classes for the two-tone navy + white theme.
+   Use .btn-navy for primary actions, .badge-navy for highlights.             */
+.btn-navy {
+  background-color: #1e3a8a;
+  color: #ffffff;
+  transition: background-color 0.15s ease;
+}
+.btn-navy:hover {
+  background-color: #1e40af;
+}
+.btn-navy:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.text-navy {
+  color: #1e3a8a;
+}
+
+.bg-navy {
+  background-color: #1e3a8a;
+}
+
+.border-navy {
+  border-color: #1e3a8a;
+}
+
+.ring-navy:focus {
+  outline: 2px solid #1e3a8a;
+  outline-offset: 2px;
+}
+
 /* ── UX-05: Print Styles ──────────────────────────────────────────────────── */
-/* These rules guarantee the modal chrome disappears and only the
-   print-clean-area (the A4 canvas) appears on paper / PDF.                   */
 @media print {
-  /* Reset page background */
   html, body {
     background-color: #ffffff !important;
     color: #000000 !important;
     font-size: 11pt;
   }
 
-  /* Hide all UI chrome */
   .no-print,
   nav,
   header,
@@ -47,14 +74,12 @@
     visibility: hidden !important;
   }
 
-  /* Remove modal backdrop and container chrome */
   .fixed.inset-0 {
     position: static !important;
     background: none !important;
     backdrop-filter: none !important;
   }
 
-  /* Strip shadow/border from the print canvas so only content prints */
   .print-clean-area {
     box-shadow: none !important;
     border: none !important;
@@ -64,17 +89,14 @@
     max-width: 100% !important;
   }
 
-  /* Remove rounded corners and background tints that look bad on paper */
   .rounded-xl, .rounded-2xl, .rounded-lg {
     border-radius: 0 !important;
   }
 
-  /* Prevent page breaks inside table rows */
   tr, td, th {
     page-break-inside: avoid;
   }
 
-  /* Page margins */
   @page {
     size: A4 portrait;
     margin: 12mm 15mm 15mm 15mm;
