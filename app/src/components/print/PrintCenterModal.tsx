@@ -112,7 +112,7 @@ export const PrintCenterModal: React.FC<PrintCenterModalProps> = ({
         {/* Modal Top Control Bar (Hidden during window.print via CSS) */}
         <div className="p-4 bg-slate-100 border-b border-slate-200 flex items-center justify-between no-print">
           <div className="flex items-center gap-3">
-            <Printer className="w-5 h-5 text-teal-700" />
+            <Printer className="w-5 h-5" style={{ color: '#1e3a8a' }} />
             <div>
               <h2 className="text-sm font-bold text-slate-800 uppercase tracking-wide">
                 Clinical Print Stationery & Forms
@@ -160,7 +160,10 @@ export const PrintCenterModal: React.FC<PrintCenterModalProps> = ({
 
             <button
               onClick={handlePrint}
-              className="px-4 py-1.5 bg-teal-600 hover:bg-teal-700 text-white rounded-lg text-xs font-bold shadow-xs flex items-center gap-1.5 ml-2"
+              className="px-4 py-1.5 text-white rounded-lg text-xs font-bold shadow-xs flex items-center gap-1.5 ml-2"
+              style={{ backgroundColor: '#1e3a8a' }}
+              onMouseEnter={e => (e.currentTarget as HTMLButtonElement).style.backgroundColor = '#1e40af'}
+              onMouseLeave={e => (e.currentTarget as HTMLButtonElement).style.backgroundColor = '#1e3a8a'}
             >
               <Printer className="w-3.5 h-3.5" />
               <span>Print Document</span>
