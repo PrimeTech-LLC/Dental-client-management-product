@@ -131,7 +131,7 @@ export const UsersHub: React.FC<UsersHubProps> = ({ currentUserId }) => {
       </div>
 
       {/* Info banner — no hardcoded credentials */}
-      <div className="flex items-start gap-3 p-3.5 bg-blue-50 border border-blue-200 rounded-xl text-xs text-blue-950">
+      <div className="flex items-start gap-3 p-3.5 bg-blue-50 border border-blue-200 rounded-xl text-xs text-blue-800">
         <ShieldCheck className="w-4 h-4 text-blue-800 shrink-0 mt-0.5" />
         <div>
           New accounts are created with a temporary password.{' '}
@@ -161,13 +161,13 @@ export const UsersHub: React.FC<UsersHubProps> = ({ currentUserId }) => {
                 <tr key={user.id} className="hover:bg-slate-50 transition-colors">
                   <td className="py-3 px-4">
                     <div className="flex items-center gap-2.5">
-                      <div className="w-7 h-7 rounded-full bg-blue-100 text-blue-800 font-bold text-xs flex items-center justify-center border border-blue-200">
+                      <div className="w-7 h-7 rounded-full bg-blue-50 text-blue-800 font-bold text-xs flex items-center justify-center border border-blue-200">
                         {user.name.charAt(0).toUpperCase()}
                       </div>
                       <div>
                         <span className="font-semibold text-slate-800">{user.name}</span>
                         {user.id === currentUserId && (
-                          <span className="ml-1.5 text-[10px] bg-blue-100 text-blue-800 px-1.5 py-0.5 rounded font-medium">You</span>
+                          <span className="ml-1.5 text-[10px] bg-blue-50 text-blue-800 px-1.5 py-0.5 rounded font-medium">You</span>
                         )}
                       </div>
                     </div>
@@ -245,7 +245,7 @@ export const UsersHub: React.FC<UsersHubProps> = ({ currentUserId }) => {
                   placeholder="e.g. Saad"
                   value={formName}
                   onChange={e => setFormName(e.target.value)}
-                  className="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-lg text-xs focus:bg-white focus:ring-1 focus:ring-blue-700 focus:outline-none"
+                  className="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-lg text-xs focus:bg-white focus:ring-1 focus:ring-blue-800 focus:outline-none"
                 />
               </div>
 
@@ -257,7 +257,7 @@ export const UsersHub: React.FC<UsersHubProps> = ({ currentUserId }) => {
                   placeholder="e.g. saad@apexdentalcare.com"
                   value={formEmail}
                   onChange={e => setFormEmail(e.target.value)}
-                  className="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-lg text-xs focus:bg-white focus:ring-1 focus:ring-blue-700 focus:outline-none"
+                  className="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-lg text-xs focus:bg-white focus:ring-1 focus:ring-blue-800 focus:outline-none"
                 />
               </div>
 
@@ -273,7 +273,7 @@ export const UsersHub: React.FC<UsersHubProps> = ({ currentUserId }) => {
                     minLength={editingUser ? undefined : 8}
                     value={formPassword}
                     onChange={e => setFormPassword(e.target.value)}
-                    className="w-full px-3 py-2 pr-9 bg-slate-50 border border-slate-300 rounded-lg text-xs focus:bg-white focus:ring-1 focus:ring-blue-700 focus:outline-none"
+                    className="w-full px-3 py-2 pr-9 bg-slate-50 border border-slate-300 rounded-lg text-xs focus:bg-white focus:ring-1 focus:ring-blue-800 focus:outline-none"
                   />
                   <button
                     type="button"
@@ -292,7 +292,7 @@ export const UsersHub: React.FC<UsersHubProps> = ({ currentUserId }) => {
                     type="checkbox"
                     checked={formActive}
                     onChange={e => setFormActive(e.target.checked)}
-                    className="rounded text-blue-800 focus:ring-blue-700"
+                    className="rounded text-blue-800 focus:ring-blue-800"
                   />
                   <span>Account is Active</span>
                 </label>

@@ -98,7 +98,7 @@ export const PatientsHub: React.FC<PatientsHubProps> = ({
             placeholder="Search by patient name, phone, PT number, email..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className="w-full pl-9 pr-4 py-2 bg-slate-50 border border-slate-300 rounded-lg text-xs focus:bg-white focus:outline-hidden focus:ring-1 focus:ring-blue-700"
+            className="w-full pl-9 pr-4 py-2 bg-slate-50 border border-slate-300 rounded-lg text-xs focus:bg-white focus:outline-hidden focus:ring-1 focus:ring-blue-800"
           />
         </div>
 
@@ -152,7 +152,7 @@ export const PatientsHub: React.FC<PatientsHubProps> = ({
                       key={p.id}
                       role="button"
                       tabIndex={0}
-                      className="hover:bg-slate-50/80 transition-colors group cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-blue-700"
+                      className="hover:bg-slate-50/80 transition-colors group cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-blue-800"
                       onClick={() => onSelectPatient(p.id)}
                       onKeyDown={(e) => {
                         if (e.key === 'Enter' || e.key === ' ') {
@@ -162,7 +162,7 @@ export const PatientsHub: React.FC<PatientsHubProps> = ({
                       }}
                     >
                       {/* PT Number */}
-                      <td className="py-3 px-4 whitespace-nowrap font-mono text-[11px] font-bold text-blue-900">
+                      <td className="py-3 px-4 whitespace-nowrap font-mono text-[11px] font-bold text-blue-800">
                         <span className="bg-blue-50 px-2 py-0.5 rounded border border-blue-200">
                           {p.patientNumber}
                         </span>
@@ -233,7 +233,7 @@ export const PatientsHub: React.FC<PatientsHubProps> = ({
                           </button>
                           <button
                             onClick={() => onSelectPatient(p.id)}
-                            className="px-2.5 py-1 bg-blue-50 hover:bg-blue-100 text-blue-900 border border-blue-200 rounded-md text-[11px] font-semibold flex items-center gap-1"
+                            className="px-2.5 py-1 bg-blue-50 hover:bg-blue-50 text-blue-800 border border-blue-200 rounded-md text-[11px] font-semibold flex items-center gap-1"
                           >
                             <span>Open Chart</span>
                             <ChevronRight className="w-3 h-3" />

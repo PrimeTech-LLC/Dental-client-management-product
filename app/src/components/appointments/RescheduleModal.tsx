@@ -149,7 +149,7 @@ export const RescheduleModal: React.FC<RescheduleModalProps> = ({
                 type="date"
                 value={newDate}
                 onChange={(e) => setNewDate(e.target.value)}
-                className="w-full px-3 py-2 bg-white border border-slate-300 rounded-lg text-xs focus:ring-1 focus:ring-blue-700 focus:outline-hidden"
+                className="w-full px-3 py-2 bg-white border border-slate-300 rounded-lg text-xs focus:ring-1 focus:ring-blue-800 focus:outline-hidden"
                 required
               />
             </div>
@@ -161,7 +161,7 @@ export const RescheduleModal: React.FC<RescheduleModalProps> = ({
               <select
                 value={newStartTime}
                 onChange={(e) => setNewStartTime(e.target.value)}
-                className="w-full px-3 py-2 bg-white border border-slate-300 rounded-lg text-xs font-mono focus:ring-1 focus:ring-blue-700 focus:outline-hidden"
+                className="w-full px-3 py-2 bg-white border border-slate-300 rounded-lg text-xs font-mono focus:ring-1 focus:ring-blue-800 focus:outline-hidden"
               >
                 {TIME_SLOTS.map(t => (
                   <option key={t} value={t}>{formatTime(t)} ({t})</option>
@@ -189,7 +189,7 @@ export const RescheduleModal: React.FC<RescheduleModalProps> = ({
                   type="checkbox"
                   checked={allowOverride}
                   onChange={(e) => setAllowOverride(e.target.checked)}
-                  className="rounded text-blue-800 focus:ring-blue-700"
+                  className="rounded text-blue-800 focus:ring-blue-800"
                 />
                 <span>Authorized Override (Allow Conflict)</span>
               </label>
@@ -213,7 +213,7 @@ export const RescheduleModal: React.FC<RescheduleModalProps> = ({
               value={reason}
               onChange={(e) => setReason(e.target.value)}
               placeholder="e.g. Patient called to delay by 2 days, Doctor schedule adjustment"
-              className="w-full px-3 py-2 bg-white border border-slate-300 rounded-lg text-xs focus:ring-1 focus:ring-blue-700 focus:outline-hidden"
+              className="w-full px-3 py-2 bg-white border border-slate-300 rounded-lg text-xs focus:ring-1 focus:ring-blue-800 focus:outline-hidden"
               required
             />
           </div>

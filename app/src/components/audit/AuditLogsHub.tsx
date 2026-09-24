@@ -72,7 +72,7 @@ export const AuditLogsHub: React.FC = () => {
             placeholder="Search audit trail by user, action, entity..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className="w-full pl-9 pr-4 py-2 bg-slate-50 border border-slate-300 rounded-lg text-xs focus:bg-white focus:outline-hidden focus:ring-1 focus:ring-blue-700"
+            className="w-full pl-9 pr-4 py-2 bg-slate-50 border border-slate-300 rounded-lg text-xs focus:bg-white focus:outline-hidden focus:ring-1 focus:ring-blue-800"
           />
         </div>
 
@@ -134,7 +134,7 @@ export const AuditLogsHub: React.FC = () => {
                     </td>
 
                     <td className="py-3 px-4 whitespace-nowrap font-mono text-[11px] text-slate-600">
-                      <span className="font-semibold text-blue-900">{log.entityType}</span>
+                      <span className="font-semibold text-blue-800">{log.entityType}</span>
                       <span className="text-slate-400 block text-[10px]">ID: {log.entityId}</span>
                     </td>
 

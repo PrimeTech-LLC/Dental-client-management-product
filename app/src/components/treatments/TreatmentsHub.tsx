@@ -92,7 +92,7 @@ export const TreatmentsHub: React.FC<TreatmentsHubProps> = ({ onSelectPatient })
             placeholder="Search treatments by patient, procedure, PT#..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className="w-full pl-9 pr-4 py-2 bg-slate-50 border border-slate-300 rounded-lg text-xs focus:bg-white focus:outline-hidden focus:ring-1 focus:ring-blue-700"
+            className="w-full pl-9 pr-4 py-2 bg-slate-50 border border-slate-300 rounded-lg text-xs focus:bg-white focus:outline-hidden focus:ring-1 focus:ring-blue-800"
           />
         </div>
 
@@ -187,7 +187,7 @@ export const TreatmentsHub: React.FC<TreatmentsHubProps> = ({ onSelectPatient })
                         {t.status === 'PLANNED' && (
                           <button
                             onClick={() => handleUpdateStatus(t.id, 'IN_PROGRESS')}
-                            className="px-2 py-1 bg-blue-50 hover:bg-blue-100 text-blue-800 rounded text-[11px] font-medium border border-blue-200"
+                            className="px-2 py-1 bg-blue-50 hover:bg-blue-50 text-blue-800 rounded text-[11px] font-medium border border-blue-200"
                           >
                             Start
                           </button>

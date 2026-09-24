@@ -170,7 +170,7 @@ export const DentalChart: React.FC<DentalChartProps> = ({
         <div className="p-4 bg-slate-900 text-slate-100 rounded-xl shadow-lg border border-slate-800 space-y-3">
           <div className="flex items-center justify-between border-b border-slate-800 pb-2">
             <div className="flex items-center gap-2">
-              <span className="font-bold text-blue-500 text-sm">Tooth #{selectedTooth}</span>
+              <span className="font-bold text-blue-800 text-sm">Tooth #{selectedTooth}</span>
               <span className="text-xs text-slate-400">Clinical Notation Editor</span>
             </div>
             <button
@@ -187,7 +187,7 @@ export const DentalChart: React.FC<DentalChartProps> = ({
               <select
                 value={selectedCondition}
                 onChange={(e) => setSelectedCondition(e.target.value as ToothCondition)}
-                className="w-full bg-slate-800 border border-slate-700 text-slate-100 rounded-lg p-2 text-xs focus:ring-1 focus:ring-blue-700 focus:outline-hidden"
+                className="w-full bg-slate-800 border border-slate-700 text-slate-100 rounded-lg p-2 text-xs focus:ring-1 focus:ring-blue-800 focus:outline-hidden"
               >
                 {TOOTH_CONDITIONS.map(c => (
                   <option key={c.value} value={c.value}>{c.label}</option>
@@ -202,7 +202,7 @@ export const DentalChart: React.FC<DentalChartProps> = ({
                 placeholder="e.g. Disto-occlusal cavity, asymptomatic"
                 value={toothNotes}
                 onChange={(e) => setToothNotes(e.target.value)}
-                className="w-full bg-slate-800 border border-slate-700 text-slate-100 rounded-lg p-2 text-xs focus:ring-1 focus:ring-blue-700 focus:outline-hidden"
+                className="w-full bg-slate-800 border border-slate-700 text-slate-100 rounded-lg p-2 text-xs focus:ring-1 focus:ring-blue-800 focus:outline-hidden"
               />
             </div>
           </div>

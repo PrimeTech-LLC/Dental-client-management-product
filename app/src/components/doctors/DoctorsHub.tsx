@@ -255,7 +255,7 @@ export const DoctorsHub: React.FC = () => {
                   onClick={() => handleSelectDoctor(doc.id)}
                   className={`p-4 rounded-xl border transition-all cursor-pointer bg-white shadow-2xs ${
                     isSelected
-                      ? 'border-blue-700 ring-2 ring-blue-700/20'
+                      ? 'border-blue-800 ring-2 ring-blue-800/20'
                       : 'border-slate-200 hover:border-slate-300'
                   }`}
                 >
@@ -311,7 +311,7 @@ export const DoctorsHub: React.FC = () => {
                         handleToggleActive(doc);
                       }}
                       className={`text-[10px] font-semibold underline ${
-                        doc.isActive ? 'text-rose-600 hover:text-rose-700' : 'text-blue-800 hover:text-blue-900'
+                        doc.isActive ? 'text-rose-600 hover:text-rose-700' : 'text-blue-800 hover:text-blue-800'
                       }`}
                     >
                       {doc.isActive ? 'Deactivate' : 'Reactivate'}
@@ -388,7 +388,7 @@ export const DoctorsHub: React.FC = () => {
                           type="checkbox"
                           checked={isAvailable}
                           onChange={(e) => handleToggleDayAvailability(day, e.target.checked)}
-                          className="rounded text-blue-800 focus:ring-blue-700"
+                          className="rounded text-blue-800 focus:ring-blue-800"
                         />
                         <span className={`font-semibold ${isAvailable ? 'text-slate-800' : 'text-slate-400'}`}>
                           {label}
@@ -422,7 +422,7 @@ export const DoctorsHub: React.FC = () => {
                 </div>
                 <button
                   onClick={() => setShowExceptionModal(true)}
-                  className="px-3 py-1.5 bg-blue-50 hover:bg-blue-100 text-blue-900 rounded-lg text-xs font-medium border border-blue-200 flex items-center gap-1"
+                  className="px-3 py-1.5 bg-blue-50 hover:bg-blue-50 text-blue-800 rounded-lg text-xs font-medium border border-blue-200 flex items-center gap-1"
                 >
                   <Plus className="w-3.5 h-3.5" />
                   <span>+ Add Time Off</span>

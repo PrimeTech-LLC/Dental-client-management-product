@@ -156,8 +156,8 @@ export const ReportsHub: React.FC = () => {
             </div>
 
             <div className="bg-blue-50/70 p-4 rounded-xl border border-blue-200 shadow-2xs">
-              <span className="text-[11px] font-bold uppercase tracking-wider text-blue-900 block">Estimated Revenue</span>
-              <div className="text-2xl font-bold text-blue-950 mt-1">${reports.estimatedRevenue?.toLocaleString() || 0}</div>
+              <span className="text-[11px] font-bold uppercase tracking-wider text-blue-800 block">Estimated Revenue</span>
+              <div className="text-2xl font-bold text-blue-800 mt-1">${reports.estimatedRevenue?.toLocaleString() || 0}</div>
               <div className="text-[11px] text-blue-800 mt-0.5">From treatments delivered</div>
             </div>
           </div>
@@ -208,7 +208,7 @@ export const ReportsHub: React.FC = () => {
                       </div>
                       <div className="w-full h-2 bg-slate-100 rounded-full overflow-hidden">
                         <div
-                          className="h-full bg-blue-600 rounded-full"
+                          className="h-full bg-blue-800 rounded-full"
                           style={{ width: `${percent}%` }}
                         ></div>
                       </div>

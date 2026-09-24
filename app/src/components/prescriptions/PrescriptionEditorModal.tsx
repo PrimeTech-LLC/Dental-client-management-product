@@ -323,7 +323,7 @@ export const PrescriptionEditorModal: React.FC<PrescriptionEditorModalProps> = (
                   key={idx}
                   type="button"
                   onClick={() => handleSelectPreset(m)}
-                  className="px-2 py-1 bg-slate-100 hover:bg-blue-50 hover:text-blue-950 border border-slate-200 rounded text-[11px] text-slate-700 transition-colors"
+                  className="px-2 py-1 bg-slate-100 hover:bg-blue-50 hover:text-blue-800 border border-slate-200 rounded text-[11px] text-slate-700 transition-colors"
                 >
                   + {m.name} {m.strength}
                 </button>
@@ -340,7 +340,7 @@ export const PrescriptionEditorModal: React.FC<PrescriptionEditorModalProps> = (
               <button
                 type="button"
                 onClick={handleAddItem}
-                className="px-2.5 py-1 bg-blue-50 hover:bg-blue-100 text-blue-900 rounded font-semibold text-xs border border-blue-200 flex items-center gap-1"
+                className="px-2.5 py-1 bg-blue-50 hover:bg-blue-50 text-blue-800 rounded font-semibold text-xs border border-blue-200 flex items-center gap-1"
               >
                 <Plus className="w-3 h-3" />
                 <span>Add Medicine</span>
