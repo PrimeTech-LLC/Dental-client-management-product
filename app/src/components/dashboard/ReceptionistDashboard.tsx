@@ -131,7 +131,7 @@ export const ReceptionistDashboard: React.FC<ReceptionistDashboardProps> = ({
           <p className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-1">Today's Appointments</p>
           <div className="flex items-baseline gap-2">
             <span className="text-2xl font-bold text-slate-900">{totalToday}</span>
-            <span className="text-xs text-teal-600 font-medium">
+            <span className="text-xs font-medium" style={{ color: '#1e3a8a' }}>
               {yesterdayCount !== null
                 ? (totalToday - yesterdayCount > 0
                     ? `+${totalToday - yesterdayCount} from yesterday`
@@ -260,7 +260,8 @@ export const ReceptionistDashboard: React.FC<ReceptionistDashboardProps> = ({
                 <p className="text-xs text-slate-400 mt-1">Try adjusting the filter criteria or create a new booking.</p>
                 <button
                   onClick={onOpenNewAppointment}
-                  className="mt-4 inline-flex items-center gap-1.5 px-4 py-2 bg-teal-600 hover:bg-teal-700 text-white rounded-md text-xs font-medium transition-colors cursor-pointer"
+                  className="mt-4 inline-flex items-center gap-1.5 px-4 py-2 text-white rounded-md text-xs font-medium transition-colors cursor-pointer"
+                  style={{ backgroundColor: '#1e3a8a' }}
                 >
                   <CalendarPlus className="w-3.5 h-3.5" />
                   <span>+ New Appointment</span>

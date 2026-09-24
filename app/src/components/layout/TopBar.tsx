@@ -5,7 +5,7 @@ import {
   CalendarPlus,
   Printer,
   LogOut,
-  Menu,          // MOB-01: hamburger icon
+  Menu,
 } from 'lucide-react';
 import { User, ClinicSettings } from '../../types/index.js';
 import { format } from 'date-fns';
@@ -39,7 +39,7 @@ export const TopBar: React.FC<TopBarProps> = ({
   const clinicName = settings?.clinicName || '';
 
   return (
-    <header className="h-16 bg-white border-b border-slate-200 flex items-center justify-between px-4 md:px-8 shrink-0 z-20">
+    <header className="h-16 bg-white border-b border-black/10 flex items-center justify-between px-4 md:px-8 shrink-0 z-20">
       {/* Left side: hamburger (mobile only) + search */}
       <div className="flex items-center gap-3 flex-1 max-w-xl">
 
@@ -61,7 +61,8 @@ export const TopBar: React.FC<TopBarProps> = ({
             type="button"
             onClick={triggerSearch}
             aria-label="Open global search"
-            className="w-full flex items-center text-left pl-10 pr-4 py-2 text-sm bg-slate-50 border border-slate-200 rounded-md text-slate-500 hover:text-slate-800 hover:border-slate-300 transition-colors focus:outline-none focus:ring-1 focus:ring-teal-500 cursor-pointer"
+            className="w-full flex items-center text-left pl-10 pr-4 py-2 text-sm bg-slate-50 border border-slate-200 rounded-md text-slate-500 hover:text-slate-800 hover:border-slate-300 transition-colors focus:outline-none cursor-pointer"
+            style={{ '--tw-ring-color': '#1e3a8a' } as any}
           >
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" aria-hidden="true" />
             <span className="truncate">Search patient by name or phone (⌘K)...</span>
@@ -104,7 +105,10 @@ export const TopBar: React.FC<TopBarProps> = ({
         <button
           onClick={onOpenNewAppointment}
           aria-label="Book new appointment"
-          className="flex items-center gap-1.5 md:gap-2 bg-teal-600 hover:bg-teal-700 text-white text-xs md:text-sm font-medium px-3 md:px-4 py-2 rounded-md shadow-sm transition-colors cursor-pointer"
+          className="flex items-center gap-1.5 md:gap-2 text-white text-xs md:text-sm font-medium px-3 md:px-4 py-2 rounded-md shadow-sm transition-colors cursor-pointer"
+          style={{ backgroundColor: '#1e3a8a' }}
+          onMouseEnter={e => (e.currentTarget as HTMLButtonElement).style.backgroundColor = '#1e40af'}
+          onMouseLeave={e => (e.currentTarget as HTMLButtonElement).style.backgroundColor = '#1e3a8a'}
         >
           <CalendarPlus className="w-4 h-4" aria-hidden="true" />
           <span className="hidden sm:inline">+ New Appointment</span>
@@ -115,7 +119,8 @@ export const TopBar: React.FC<TopBarProps> = ({
         {currentUser && (
           <div className="flex items-center gap-2 border-l border-slate-200 pl-3 md:pl-4">
             <div
-              className="w-7 h-7 rounded-full bg-teal-100 text-teal-700 flex items-center justify-center font-bold text-xs border border-teal-200"
+              className="w-7 h-7 rounded-full text-white flex items-center justify-center font-bold text-xs"
+              style={{ backgroundColor: '#1e3a8a' }}
               aria-hidden="true"
             >
               {currentUser.name.charAt(0).toUpperCase()}

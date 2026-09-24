@@ -90,17 +90,30 @@ async function run() {
         ('Ali',   'ali@clinic.local',   'RECEPTIONIST', crypt('dental123', gen_salt('bf')), true, true)
     `);
 
-    // ── Blank clinic settings (already inserted by schema DEFAULT row) ──
-    // Ensure the default row exists in case schema hasn't inserted it yet:
+    // ── Clinic settings — seed with MDS / Mehmood Dental Clinic identity ──
+    // The receptionist can update all fields via Settings → Clinic Configuration.
     await client.query(`
-      INSERT INTO clinic_settings (id) VALUES ('clinic-default')
-      ON CONFLICT (id) DO NOTHING
+      INSERT INTO clinic_settings (id, clinic_name, tagline, phone, email, address_line1, city, state, zip_code)
+      VALUES (
+        'clinic-default',
+        'Mehmood Dental Clinic',
+        'MDS — Quality Dental Care',
+        '',
+        '',
+        '',
+        '',
+        '',
+        ''
+      )
+      ON CONFLICT (id) DO UPDATE SET
+        clinic_name = EXCLUDED.clinic_name,
+        tagline     = EXCLUDED.tagline
     `);
 
     await client.query('COMMIT');
     console.log('✅  Bootstrap seed complete.');
     console.log('   → 3 receptionist accounts: Saad / Ather / Ali (password: dental123)');
-    console.log('   → Clinic settings row ready — fill in details via the Settings page.');
+    console.log('   → Clinic name set to "Mehmood Dental Clinic" (MDS) — update via Settings page.');
     console.log('   → No demo patients, doctors, or appointments inserted.');
     console.log('   → Add doctors and patients through the app UI.');
 
