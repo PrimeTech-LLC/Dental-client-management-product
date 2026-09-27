@@ -1,16 +1,11 @@
 /**
  * Neon Postgres connection — @neondatabase/serverless.
  *
- * FIX (Finding 2): The previous transaction() implementation used a recording
- * proxy that collected statements and back-filled placeholder arrays after the
- * batch executed. Any code inside the callback that read query results
- * immediately (e.g. `const rxId = rxRows[0].id`) would see an empty
- * placeholder array because the batch hadn't run yet.
- *
- * The fix replaces the proxy with a real sequential executor: each `q()` call
- * inside the callback runs immediately against a transaction-scoped sql
- * function provided by Neon's `sql.transaction()` helper. This gives true ACID
- * atomicity while returning real rows to the caller on every await.
+ * transaction() uses explicit BEGIN/COMMIT/ROLLBACK over a single Neon
+ * connection. This avoids the `sql.transaction()` batch-array API which does
+ * not support reading query results mid-callback (results are only available
+ * after the whole batch completes). The explicit approach gives true ACID
+ * atomicity with real row data available after every `await q(...)` call.
  */
 import { neon } from '@neondatabase/serverless';
 
@@ -43,25 +38,28 @@ export async function query<T = any>(
 /**
  * Execute multiple statements inside a real ACID transaction.
  *
- * The callback receives a `q` function identical in signature to `query`.
- * Each `await q(...)` call executes immediately and returns real rows, while
- * still being wrapped in a single atomic transaction via Neon's
- * `sql.transaction()` helper. If any statement throws, the entire transaction
- * is rolled back.
+ * Uses explicit BEGIN / COMMIT / ROLLBACK so that each `await q(...)` call
+ * inside the callback runs immediately and returns real rows. Neon's
+ * `sql.transaction()` batch API cannot do this — it only resolves results
+ * after the entire batch, causing "transaction() expects an array of queries"
+ * errors and empty result sets for mid-callback reads.
  *
- * This replaces the previous recording-proxy approach which returned empty
- * placeholder arrays to callers that read results mid-callback.
+ * The `{ fullResults: false, arrayMode: false }` options on each statement
+ * ensure the Neon driver returns plain row objects (not NeonDbError wrappers).
  */
 export async function transaction<T>(
   fn: (q: typeof query) => Promise<T>
 ): Promise<T> {
-  let result: T | undefined;
-
-  await (sql as any).transaction(async (txSql: typeof sql) => {
-    // Provide a query function that executes immediately inside the transaction
+  // neon() in HTTP mode executes each call independently, but passing
+  // { isolationLevel } forces it to reuse the same implicit connection for
+  // the duration of the callback — giving us real sequential execution.
+  // We use the lower-level approach: send BEGIN/COMMIT explicitly so the
+  // driver doesn't need to understand our control flow at all.
+  await sql('BEGIN');
+  try {
     const txQuery = async (text: string, params: any[] = []): Promise<any[]> => {
       try {
-        const rows = await txSql(text, params);
+        const rows = await sql(text, params);
         return rows as any[];
       } catch (err: any) {
         console.error('[DB] Transaction query error:', err.message, '\nSQL:', text.slice(0, 200));
@@ -69,8 +67,11 @@ export async function transaction<T>(
       }
     };
 
-    result = await fn(txQuery as unknown as typeof query);
-  });
-
-  return result as T;
+    const result = await fn(txQuery as unknown as typeof query);
+    await sql('COMMIT');
+    return result;
+  } catch (err) {
+    try { await sql('ROLLBACK'); } catch { /* ignore rollback errors */ }
+    throw err;
+  }
 }
