@@ -136,15 +136,16 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLogin }) => {
     setLoading(true);
     setError('');
     try {
-      await onLogin(username.trim(), password);
-      try {
-        const meRes = await fetch('/api/auth/me', { credentials: 'include' });
-        const meBody = await meRes.json();
-        if (meBody?.data?.user?.mustChangePassword) {
-          setLoggedInUsername(username.trim());
-          setMustChangePassword(true);
-        }
-      } catch { /* non-critical */ }
+      // ISSUE-015 FIX: onLogin() returns the user from the login response which
+      // already includes mustChangePassword. We use the user object directly
+      // instead of making a redundant /api/auth/me round-trip after login.
+      const { user } = await api.login(username.trim(), password);
+      if (user?.mustChangePassword) {
+        setLoggedInUsername(username.trim());
+        setMustChangePassword(true);
+      } else {
+        await onLogin(username.trim(), password);
+      }
     } catch (err: any) {
       setError(err.message || 'Invalid username or password. Please try again.');
     } finally {

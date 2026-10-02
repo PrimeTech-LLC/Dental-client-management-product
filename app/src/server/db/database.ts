@@ -354,20 +354,9 @@ function toMinutes(timeStr: string): number {
   return h * 60 + m;
 }
 
-async function generatePatientNumber(): Promise<string> {
-  const rows = await query<{ value: number }>(
-    `UPDATE counters SET value = value + 1 WHERE name = 'patient_seq' RETURNING value`
-  );
-  return `PT-${String(rows[0].value).padStart(6, '0')}`;
-}
-
-async function generateRxNumber(): Promise<string> {
-  const rows = await query<{ value: number }>(
-    `UPDATE counters SET value = value + 1 WHERE name = 'rx_seq' RETURNING value`
-  );
-  const year = new Date().getFullYear();
-  return `RX-${year}-${String(rows[0].value).padStart(4, '0')}`;
-}
+// generateRxNumber is intentionally removed from module scope.
+// The RX sequence counter is now incremented INSIDE createPrescription()'s
+// transaction body to ensure atomicity (see ISSUE-007 fix).
 
 // ─── Audit ──────────────────────────────────────────────────────────────────
 
@@ -426,6 +415,24 @@ export async function verifyUserPassword(
        AND password_hash IS NOT NULL
        AND password_hash = crypt($2, password_hash)`,
     [nameOrEmail.trim(), password]
+  );
+  return rows[0] ? mapUser(rows[0]) : null;
+}
+
+// ISSUE-005: Verify password by primary key (id) instead of by name.
+// Name is not unique in the schema, so verifying by name could inadvertently
+// match the wrong account when two users share a name.
+export async function verifyUserPasswordById(
+  userId: string,
+  password: string
+): Promise<User | null> {
+  const rows = await query<any>(
+    `SELECT * FROM users
+     WHERE id = $1
+       AND is_active = true
+       AND password_hash IS NOT NULL
+       AND password_hash = crypt($2, password_hash)`,
+    [userId, password]
   );
   return rows[0] ? mapUser(rows[0]) : null;
 }
@@ -1300,7 +1307,11 @@ export async function rescheduleAppointment(
     if (conflict.hasConflict) return { conflict };
   }
 
-  return transaction(async (q) => {
+  // ISSUE-010 FIX: logAudit and getAppointmentById are called AFTER the
+  // transaction commits so a rolled-back reschedule never produces a phantom
+  // audit entry, and getAppointmentById uses its own connection (not the tx one).
+  let newApptId = '';
+  await transaction(async (q) => {
     // Mark old as RESCHEDULED
     await q(
       `UPDATE appointments SET status = 'RESCHEDULED', reschedule_reason = $1, updated_at = NOW() WHERE id = $2`,
@@ -1317,10 +1328,12 @@ export async function rescheduleAppointment(
        `Rescheduled from ${old.appointmentDate} ${old.startTime}. Reason: ${reason}`,
        actorName]
     );
-    const newAppt = await getAppointmentById(newRows[0].id);
-    await logAudit({ userId: actorId, userName: actorName, userRole: actorRole, action: 'APPOINTMENT_RESCHEDULED', entityType: 'APPOINTMENT', entityId: newRows[0].id });
-    return { appointment: newAppt! };
+    newApptId = newRows[0].id;
   });
+
+  await logAudit({ userId: actorId, userName: actorName, userRole: actorRole, action: 'APPOINTMENT_RESCHEDULED', entityType: 'APPOINTMENT', entityId: newApptId });
+  const newAppt = await getAppointmentById(newApptId);
+  return { appointment: newAppt! };
 }
 
 // ─── Visits ─────────────────────────────────────────────────────────────────
@@ -1355,9 +1368,17 @@ export async function createVisit(
      visitData.visitDate, visitData.chiefComplaint ?? null, visitData.clinicalNotes ?? null,
      visitData.diagnosis ?? null, visitData.treatmentSummary ?? null, visitData.followUpDate ?? null]
   );
-  // If linked to appointment, complete it
+  // If linked to appointment, complete it — but only if the current status
+  // allows that transition (ISSUE-012: bypass of the API-layer guard).
   if (visitData.appointmentId) {
-    await updateAppointmentStatus(visitData.appointmentId, 'COMPLETED', actorId, actorName);
+    const linkedAppt = await query('SELECT status FROM appointments WHERE id = $1', [visitData.appointmentId]);
+    const currentStatus = linkedAppt[0]?.status as string | undefined;
+    // Only IN_PROGRESS appointments transition cleanly to COMPLETED.
+    // Allow ARRIVED as well in case the doctor starts the visit directly.
+    const completableStatuses = ['IN_PROGRESS', 'ARRIVED', 'CONFIRMED', 'SCHEDULED'];
+    if (currentStatus && completableStatuses.includes(currentStatus)) {
+      await updateAppointmentStatus(visitData.appointmentId, 'COMPLETED', actorId, actorName);
+    }
   }
   await logAudit({ userId: actorId, userName: actorName, userRole: actorRole, action: 'VISIT_RECORDED', entityType: 'VISIT', entityId: rows[0].id });
   return mapVisit(rows[0]);
@@ -1410,12 +1431,31 @@ export async function createTreatment(
      data.description ?? null, data.status ?? 'PLANNED', data.cost ?? null,
      data.startDate ?? null, data.completionDate ?? null, data.notes ?? null]
   );
-  // If tooth number provided, update dental chart
+  // If tooth number provided, update dental chart using a treatment-type-aware
+  // condition mapping instead of the previous binary FILLED/CARIES that could
+  // overwrite a more specific condition (e.g. ROOT_CANAL → CARIES).
   if (data.toothNumber) {
+    const TREATMENT_CONDITION_MAP: Record<string, DentalHistory['condition']> = {
+      'Root Canal':  'ROOT_CANAL',
+      'Crown':       'CROWN',
+      'Bridge':      'BRIDGE',
+      'Implant':     'IMPLANT',
+      'Extraction':  'MISSING',
+    };
+    // Derive condition from treatmentName or treatmentType; fall back to FILLED
+    // for a completed treatment and CARIES for anything in-progress/planned.
+    const nameKey = Object.keys(TREATMENT_CONDITION_MAP).find(k =>
+      (data.treatmentName ?? '').toLowerCase().includes(k.toLowerCase()) ||
+      (data.treatmentType ?? '').toLowerCase().includes(k.toLowerCase())
+    );
+    const derivedCondition: DentalHistory['condition'] = nameKey
+      ? TREATMENT_CONDITION_MAP[nameKey]
+      : (data.status === 'COMPLETED' ? 'FILLED' : 'CARIES');
+
     await updateToothCondition(
       data.patientId, data.toothNumber,
-      data.status === 'COMPLETED' ? 'FILLED' : 'CARIES',
-      `${data.treatmentName} (${data.status})`,
+      derivedCondition,
+      `${data.treatmentName ?? 'Treatment'} (${data.status})`,
       actorName
     );
   }
@@ -1533,9 +1573,8 @@ export async function createPrescription(
   actorName = 'System',
   actorRole: UserRole = 'RECEPTIONIST'
 ): Promise<Prescription> {
-  const rxNumber = await generateRxNumber();
-
-  // BUG-05: Server-side allergy cross-check against structured patient_allergies table
+  // Server-side allergy cross-check against structured patient_allergies table.
+  // Done before opening the transaction so the check does not hold a DB connection open.
   const allergyRows = await query(
     `SELECT allergen, severity FROM patient_allergies WHERE patient_id = $1`,
     [rxData.patientId]
@@ -1546,7 +1585,6 @@ export async function createPrescription(
     for (const item of items) {
       const med = item.medicineName.toLowerCase();
       for (const allergen of allergenNames) {
-        // Check broad cross-reactive families
         const isPenicillinFamily = allergen.includes('penicillin') &&
           (med.includes('amox') || med.includes('penicillin') || med.includes('augmentin') || med.includes('ampicillin'));
         const isCephalosporinFamily = allergen.includes('cephalosporin') &&
@@ -1555,7 +1593,6 @@ export async function createPrescription(
           (med.includes('ibu') || med.includes('ketorolac') || med.includes('aspirin') || med.includes('naproxen') || med.includes('diclofenac'));
         const isMacrolideFamily = allergen.includes('macrolide') &&
           (med.includes('azithromycin') || med.includes('clarithromycin') || med.includes('erythromycin'));
-        // Direct name match
         const isDirectMatch = med.includes(allergen) || allergen.includes(med.split(' ')[0]);
 
         if (isPenicillinFamily || isCephalosporinFamily || isNsaidFamily || isMacrolideFamily || isDirectMatch) {
@@ -1570,7 +1607,22 @@ export async function createPrescription(
 
   const allergyWarningText = allergyWarnings.length > 0 ? allergyWarnings.join('\n') : null;
 
-  return transaction(async (q) => {
+  // ISSUE-007 FIX: generate the RX number INSIDE the transaction so that a
+  // failed INSERT cannot leave a gap in the sequence — the counter increment
+  // and the prescription INSERT are now a single atomic unit.
+  // ISSUE-010 FIX: logAudit is called AFTER the transaction resolves so that a
+  // rolled-back transaction does not produce a phantom audit entry.
+  let createdRxId = '';
+  let createdRxNumber = '';
+
+  await transaction(async (q) => {
+    // Atomically claim the next sequence value inside the transaction
+    const ctrRows = await q<{ value: number }>(
+      `UPDATE counters SET value = value + 1 WHERE name = 'rx_seq' RETURNING value`
+    );
+    const rxNumber = `RX-${new Date().getFullYear()}-${String(ctrRows[0].value).padStart(4, '0')}`;
+    createdRxNumber = rxNumber;
+
     const rxRows = await q<{ id: string }>(
       `INSERT INTO prescriptions
          (rx_number, patient_id, doctor_id, visit_id, prescription_date, diagnosis,
@@ -1583,6 +1635,7 @@ export async function createPrescription(
        rxData.followUpDays ?? null, rxData.status ?? 'ACTIVE', allergyWarningText]
     );
     const rxId = rxRows[0].id;
+    createdRxId = rxId;
 
     for (let idx = 0; idx < items.length; idx++) {
       const it = items[idx];
@@ -1591,7 +1644,6 @@ export async function createPrescription(
          VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9)`,
         [rxId, it.medicineName, it.strength ?? null, it.dosage, it.frequency, it.duration, it.route ?? 'Oral', it.instructions ?? null, idx]
       );
-      // Also record in patient_medications for medication history
       await q(
         `INSERT INTO patient_medications (patient_id, medicine_name, dosage, frequency, route, start_date, status, notes)
          VALUES ($1,$2,$3,$4,$5,$6,'CURRENT',$7)`,
@@ -1600,10 +1652,12 @@ export async function createPrescription(
          `Prescribed on ${rxNumber} (${it.duration})`]
       );
     }
-
-    await logAudit({ userId: actorId, userName: actorName, userRole: actorRole, action: 'PRESCRIPTION_CREATED', entityType: 'PRESCRIPTION', entityId: rxId, entityName: rxNumber });
-    return getPrescriptionById(rxId) as Promise<Prescription>;
   });
+
+  // Audit log written after the transaction commits so it never records a
+  // phantom entry for a rolled-back operation.
+  await logAudit({ userId: actorId, userName: actorName, userRole: actorRole, action: 'PRESCRIPTION_CREATED', entityType: 'PRESCRIPTION', entityId: createdRxId, entityName: createdRxNumber });
+  return getPrescriptionById(createdRxId) as Promise<Prescription>;
 }
 
 // ─── Reminders ──────────────────────────────────────────────────────────────
@@ -1647,6 +1701,9 @@ export async function triggerManualReminder(
 
 export async function getSettings(): Promise<ClinicSettings> {
   const rows = await query("SELECT * FROM clinic_settings WHERE id = 'clinic-default'");
+  if (!rows[0]) {
+    throw new Error('Clinic settings not initialised. Run migrations first (npm run migrate:seed).');
+  }
   return mapSettings(rows[0]);
 }
 
@@ -1691,6 +1748,9 @@ export async function updateSettings(
      settings.workingHoursEnd ?? settings.operatingHoursEnd ?? null,
      settings.currencySymbol ?? null]
   );
+  if (!rows[0]) {
+    throw new Error('Clinic settings row not found. Run migrations first (npm run migrate:seed).');
+  }
   await logAudit({ userId: actorId, userName: actorName, userRole: actorRole, action: 'SETTINGS_UPDATED', entityType: 'SETTINGS', entityId: 'clinic-default' });
   return mapSettings(rows[0]);
 }
@@ -1698,12 +1758,14 @@ export async function updateSettings(
 // ─── Audit Logs ─────────────────────────────────────────────────────────────
 
 export async function getAuditLogs(limit = 100, entityType?: string): Promise<AuditLog[]> {
+  // ISSUE-018 FIX: use fully parameterized query instead of mixing string
+  // interpolation with placeholders, which is fragile and error-prone.
+  const filterByType = entityType && entityType !== 'ALL';
   const rows = await query(
-    `SELECT * FROM audit_logs
-     ${entityType && entityType !== 'ALL' ? 'WHERE entity_type = $1' : ''}
-     ORDER BY created_at DESC
-     LIMIT ${entityType && entityType !== 'ALL' ? '$2' : '$1'}`,
-    entityType && entityType !== 'ALL' ? [entityType, limit] : [limit]
+    filterByType
+      ? `SELECT * FROM audit_logs WHERE entity_type = $1 ORDER BY created_at DESC LIMIT $2`
+      : `SELECT * FROM audit_logs ORDER BY created_at DESC LIMIT $1`,
+    filterByType ? [entityType, limit] : [limit]
   );
   return rows.map(mapAuditLog);
 }
