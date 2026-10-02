@@ -81,7 +81,10 @@ function currentUser(req: express.Request): User {
   return (req as any).currentUser as User;
 }
 
-// ─── SEC-07: Role-Based Access Control ───────────────────────────────────────
+// ─── Role-Based Access Control ────────────────────────────────────────────────
+// DOCTOR role exists in the schema but is not yet used for login/access.
+// All authenticated users are either ADMIN or RECEPTIONIST. The role guard is
+// applied to admin-only and receptionist-write endpoints explicitly.
 function requireRole(...roles: UserRole[]) {
   return (req: express.Request, res: express.Response, next: express.NextFunction) => {
     const user = currentUser(req);
@@ -97,9 +100,21 @@ function requireRole(...roles: UserRole[]) {
 
 // ─── SEC-02: Simple in-memory rate limiter for login ─────────────────────────
 // Keyed by IP. Allows 15 attempts per 15-minute window.
+// Note: in a multi-instance (Vercel) deployment this is per-instance; for
+// production use an external store (Redis/Upstash). The in-process version
+// still protects against single-instance brute-force attacks.
 const loginAttempts = new Map<string, { count: number; resetAt: number }>();
-const LOGIN_WINDOW_MS  = 15 * 60 * 1000; // 15 minutes
+const LOGIN_WINDOW_MS    = 15 * 60 * 1000; // 15 minutes
 const LOGIN_MAX_ATTEMPTS = 15;
+
+// ISSUE-004: Periodically evict expired entries so the Map does not grow
+// indefinitely in a long-running process. Run every window interval.
+setInterval(() => {
+  const now = Date.now();
+  for (const [ip, entry] of loginAttempts) {
+    if (now >= entry.resetAt) loginAttempts.delete(ip);
+  }
+}, LOGIN_WINDOW_MS).unref(); // .unref() so this timer does not keep the process alive
 
 function loginRateLimiter(
   req: express.Request,
@@ -128,7 +143,6 @@ function loginRateLimiter(
     loginAttempts.set(ip, { count: 1, resetAt: now + LOGIN_WINDOW_MS });
   }
 
-  // Clear successful login entries to reset the window after auth succeeds
   (req as any)._loginIp = ip;
   next();
 }
@@ -138,7 +152,7 @@ function clearLoginAttempts(req: express.Request) {
   if (ip) loginAttempts.delete(ip);
 }
 
-// ─── SEC-03: Validation helpers ───────────────────────────────────────────────
+// ─── Validation helpers ───────────────────────────────────────────────────────
 function validateString(val: any, name: string, maxLen = 500): string {
   if (typeof val !== 'string' || !val.trim()) {
     throw Object.assign(new Error(`${name} is required and must be a non-empty string.`), { status: 400 });
@@ -161,15 +175,15 @@ function validatePatientBody(body: any) {
   validateString(body.lastName,  'lastName');
   validateString(body.phone,     'phone', 30);
   validateDate(body.dateOfBirth, 'dateOfBirth');
-  if (!['MALE','FEMALE','OTHER'].includes(body.gender)) {
+  if (!['MALE', 'FEMALE', 'OTHER'].includes(body.gender)) {
     throw Object.assign(new Error('gender must be MALE, FEMALE, or OTHER.'), { status: 400 });
   }
 }
 
 function validateAppointmentBody(body: any) {
-  validateString(body.patientId,      'patientId', 100);
-  validateString(body.doctorId,       'doctorId',  100);
-  validateDate(body.appointmentDate,  'appointmentDate');
+  validateString(body.patientId,     'patientId', 100);
+  validateString(body.doctorId,      'doctorId',  100);
+  validateDate(body.appointmentDate, 'appointmentDate');
   if (typeof body.startTime !== 'string' || !/^\d{2}:\d{2}$/.test(body.startTime)) {
     throw Object.assign(new Error('startTime must be in HH:mm format.'), { status: 400 });
   }
@@ -188,6 +202,32 @@ function validateDoctorBody(body: any) {
   validateString(body.phone,          'phone', 30);
 }
 
+// ISSUE-013: Validation for previously unvalidated mutation endpoints
+function validateTreatmentBody(body: any) {
+  validateString(body.treatmentName, 'treatmentName');
+  validateString(body.patientId,     'patientId', 100);
+  validateString(body.doctorId,      'doctorId',  100);
+}
+
+function validateVisitBody(body: any) {
+  validateString(body.patientId, 'patientId', 100);
+  validateString(body.doctorId,  'doctorId',  100);
+  validateDate(body.visitDate,   'visitDate');
+}
+
+function validateAllergyBody(body: any) {
+  validateString(body.allergen, 'allergen');
+  if (body.severity && !['LOW', 'MEDIUM', 'HIGH', 'SEVERE'].includes(body.severity)) {
+    throw Object.assign(new Error('severity must be LOW, MEDIUM, HIGH, or SEVERE.'), { status: 400 });
+  }
+}
+
+function validateMedicationBody(body: any) {
+  validateString(body.medicineName, 'medicineName');
+  validateString(body.dosage,       'dosage');
+  validateString(body.frequency,    'frequency');
+}
+
 function handleValidationError(err: any, res: express.Response) {
   const status = err.status ?? 500;
   return res.status(status).json({ success: false, error: { code: 'VALIDATION_ERROR', message: err.message } });
@@ -203,44 +243,51 @@ if (IS_PROD) {
   app.set('trust proxy', 1);
 }
 
-// ─── SEC-01: HTTP security headers via helmet ─────────────────────────────────
-// Applied before all routes so every response — including errors — gets headers.
+// ─── HTTP security headers via helmet ────────────────────────────────────────
 app.use(helmet({
   contentSecurityPolicy: {
     directives: {
-      defaultSrc:  ["'self'"],
-      scriptSrc:   ["'self'"],
+      defaultSrc: ["'self'"],
+      scriptSrc:  ["'self'"],
       // Tailwind v4 uses inline styles for utilities; unsafe-inline is needed until
       // a nonce-based CSP approach is implemented.
-      styleSrc:    ["'self'", "'unsafe-inline'"],
-      imgSrc:      ["'self'", "data:"],
-      connectSrc:  ["'self'"],
-      fontSrc:     ["'self'"],
-      frameSrc:    ["'none'"],
-      objectSrc:   ["'none'"],
-      baseUri:     ["'self'"],
-      formAction:  ["'self'"],
+      styleSrc:   ["'self'", "'unsafe-inline'"],
+      imgSrc:     ["'self'", "data:"],
+      connectSrc: ["'self'"],
+      fontSrc:    ["'self'"],
+      frameSrc:   ["'none'"],
+      objectSrc:  ["'none'"],
+      baseUri:    ["'self'"],
+      formAction: ["'self'"],
     },
   },
-  crossOriginEmbedderPolicy: false, // required for Vite HMR in dev
+  crossOriginEmbedderPolicy: false,
   hsts: IS_PROD ? { maxAge: 31_536_000, includeSubDomains: true, preload: true } : false,
   referrerPolicy: { policy: 'strict-origin-when-cross-origin' },
 }));
 
-// ─── SEC-CSRF: Validate Origin on all state-changing API requests ─────────────
+// ─── CSRF: Validate Origin on all state-changing API requests ─────────────────
 // sameSite:'strict' on the cookie + Origin header check gives double CSRF protection.
+// ISSUE-006 FIX: use exact URL match instead of substring .includes() to prevent
+// an attacker at evil-myhost.com from bypassing the check against myhost.com.
 const ALLOWED_ORIGINS = IS_PROD
   ? [process.env.ALLOWED_ORIGIN ?? ''].filter(Boolean)
   : ['http://localhost:3000', 'http://localhost:3001'];
 
 app.use((req, res, next) => {
   if (['POST', 'PUT', 'DELETE', 'PATCH'].includes(req.method) && req.path.startsWith('/api/')) {
-    const origin = req.headers.origin ?? req.headers.referer ?? '';
+    const origin = req.headers.origin ?? '';
     const host   = req.headers.host ?? '';
-    // Allow same-origin requests (no Origin header = same-origin in most browsers)
-    // and explicitly allowed origins
-    const isSameHost  = !req.headers.origin || origin.includes(host.split(':')[0]);
-    const isAllowed   = ALLOWED_ORIGINS.some(o => origin.startsWith(o));
+
+    // No Origin header means same-origin request (browser same-origin omits Origin).
+    if (!origin) return next();
+
+    // Build the expected origin from the Host header for exact comparison.
+    const proto          = IS_PROD ? 'https' : 'http';
+    const expectedOrigin = `${proto}://${host}`;
+    const isSameHost     = origin === expectedOrigin;
+    const isAllowed      = ALLOWED_ORIGINS.some(o => origin === o);
+
     if (!isSameHost && !isAllowed && IS_PROD) {
       return res.status(403).json({ success: false, error: { code: 'FORBIDDEN', message: 'Cross-origin request not allowed' } });
     }
@@ -289,7 +336,6 @@ app.get('/api/auth/me', async (req, res) => {
   }
 });
 
-// SEC-02: rate-limited login
 app.post('/api/auth/login', loginRateLimiter, async (req, res) => {
   try {
     const { username, password } = req.body;
@@ -304,13 +350,11 @@ app.post('/api/auth/login', loginRateLimiter, async (req, res) => {
     await db.updateUserLastLogin(user.id);
     const token = signToken(user);
     setAuthCookie(res, token);
-    // SEC-08: capture IP in audit log
     await db.logAudit({
       userId: user.id, userName: user.name, userRole: user.role,
       action: 'USER_LOGIN', entityType: 'USER', entityId: user.id, entityName: user.name,
       ipAddress: getClientIp(req),
     });
-    // CONFIG-02: include mustChangePassword flag in login response
     return res.json({ success: true, data: { user } });
   } catch (err: any) {
     console.error('[login] error:', err.message);
@@ -318,7 +362,6 @@ app.post('/api/auth/login', loginRateLimiter, async (req, res) => {
   }
 });
 
-// Public clinic branding (pre-login screen)
 app.get('/api/public/clinic', async (_req, res) => {
   try {
     const settings = await db.getSettings();
@@ -328,12 +371,13 @@ app.get('/api/public/clinic', async (_req, res) => {
   }
 });
 
-app.post('/api/auth/logout', (req, res) => {
+app.post('/api/auth/logout', (_req, res) => {
   clearAuthCookie(res);
   res.json({ success: true });
 });
 
-// CONFIG-02: change password endpoint (works pre-auth via a special flow)
+// ISSUE-005 FIX: change-password verifies by user ID (via verifyUserPasswordById),
+// not by name — name is not unique and could match the wrong account.
 app.post('/api/auth/change-password', requireAuth, async (req, res) => {
   try {
     const { currentPassword, newPassword } = req.body;
@@ -344,7 +388,8 @@ app.post('/api/auth/change-password', requireAuth, async (req, res) => {
     if (newPassword.length < 8) {
       return res.status(400).json({ success: false, error: { message: 'New password must be at least 8 characters.' } });
     }
-    const verified = await db.verifyUserPassword(cu.name, currentPassword);
+    // Verify current password by user ID, not by name
+    const verified = await db.verifyUserPasswordById(cu.id, currentPassword);
     if (!verified) {
       return res.status(401).json({ success: false, error: { message: 'Current password is incorrect.' } });
     }
@@ -375,21 +420,20 @@ app.use('/api', (req, res, next) => {
 
 // ─── Users / Staff management ─────────────────────────────────────────────────
 // Any authenticated user can list receptionists (needed for selection dropdowns)
-app.get('/api/users/receptionists', async (req, res) => {
+app.get('/api/users/receptionists', async (_req, res) => {
   try {
     const users = await db.getReceptionists();
     res.json({ success: true, data: users });
   } catch (err: any) { res.status(500).json({ success: false, error: { message: err.message } }); }
 });
 
-// SEC-01: only ADMIN can create / modify / delete receptionist accounts
+// Only ADMIN can create / modify / delete receptionist accounts
 app.post('/api/users/receptionists', requireRole('ADMIN'), async (req, res) => {
   try {
     const { name, email, password } = req.body;
     if (!name || !email || !password) {
       return res.status(400).json({ success: false, error: { code: 'MISSING_FIELDS', message: 'Name, email, and password are required' } });
     }
-    // SEC-02: standardised minimum password length
     if (password.length < 8) {
       return res.status(400).json({ success: false, error: { message: 'Password must be at least 8 characters.' } });
     }
@@ -431,8 +475,12 @@ app.delete('/api/users/receptionists/:id', requireRole('ADMIN'), async (req, res
 app.get('/api/patients', async (req, res) => {
   try {
     const search = (req.query.search as string) || '';
-    const limit  = Math.min(parseInt(req.query.limit  as string) || 50, 200);
-    const offset = Math.max(parseInt(req.query.offset as string) || 0, 0);
+    // ISSUE-008 FIX: use Number.isFinite guard — parseInt('0') || 50 incorrectly
+    // returned 50 because 0 is falsy. Number.isFinite is unambiguous.
+    const rawLimit  = Number(req.query.limit);
+    const rawOffset = Number(req.query.offset);
+    const limit  = Math.min(Number.isFinite(rawLimit)  && rawLimit  > 0 ? Math.floor(rawLimit)  : 50, 200);
+    const offset = Number.isFinite(rawOffset) && rawOffset >= 0 ? Math.floor(rawOffset) : 0;
     const result = await db.getPatients(search, limit, offset);
     res.json({ success: true, data: result });
   } catch (err: any) { res.status(500).json({ success: false, error: { message: err.message } }); }
@@ -455,8 +503,8 @@ app.post('/api/patients/check-duplicate', async (req, res) => {
   } catch (err: any) { res.status(500).json({ success: false, error: { message: err.message } }); }
 });
 
-// SEC-03: validated patient creation
-app.post('/api/patients', async (req, res) => {
+// ISSUE-003: Patient creation restricted to ADMIN and RECEPTIONIST
+app.post('/api/patients', requireRole('ADMIN', 'RECEPTIONIST'), async (req, res) => {
   try {
     validatePatientBody(req.body);
     const cu = currentUser(req);
@@ -468,10 +516,11 @@ app.post('/api/patients', async (req, res) => {
   }
 });
 
-app.put('/api/patients/:id', async (req, res) => {
+// ISSUE-003: Patient updates restricted to ADMIN and RECEPTIONIST
+app.put('/api/patients/:id', requireRole('ADMIN', 'RECEPTIONIST'), async (req, res) => {
   try {
     const cu = currentUser(req);
-    // DATA-02: normalise empty strings to null so nullable fields can be cleared
+    // Normalise empty strings to null so nullable fields can be cleared
     const nullify = (v: any) => (v === '' ? null : v);
     const updates = {
       ...req.body,
@@ -490,49 +539,61 @@ app.put('/api/patients/:id', async (req, res) => {
   } catch (err: any) { res.status(500).json({ success: false, error: { message: err.message } }); }
 });
 
-app.post('/api/patients/:id/medical-history', async (req, res) => {
+app.post('/api/patients/:id/medical-history', requireRole('ADMIN', 'RECEPTIONIST'), async (req, res) => {
   try {
     const cu = currentUser(req);
+    if (!req.body.condition) {
+      return res.status(400).json({ success: false, error: { message: 'condition is required.' } });
+    }
     const item = await db.addPatientMedicalHistory({ patientId: req.params.id, createdBy: cu.name, ...req.body });
     res.status(201).json({ success: true, data: item });
   } catch (err: any) { res.status(500).json({ success: false, error: { message: err.message } }); }
 });
 
-app.post('/api/patients/:id/allergies', async (req, res) => {
+// ISSUE-013: Validate allergy body
+app.post('/api/patients/:id/allergies', requireRole('ADMIN', 'RECEPTIONIST'), async (req, res) => {
   try {
+    validateAllergyBody(req.body);
     const item = await db.addPatientAllergy({ patientId: req.params.id, ...req.body });
     res.status(201).json({ success: true, data: item });
-  } catch (err: any) { res.status(500).json({ success: false, error: { message: err.message } }); }
+  } catch (err: any) {
+    if (err.status === 400) return handleValidationError(err, res);
+    res.status(500).json({ success: false, error: { message: err.message } });
+  }
 });
 
-app.delete('/api/patients/allergies/:allergyId', async (req, res) => {
+app.delete('/api/patients/allergies/:allergyId', requireRole('ADMIN', 'RECEPTIONIST'), async (req, res) => {
   try {
     await db.deleteAllergy(req.params.allergyId);
     res.json({ success: true });
   } catch (err: any) { res.status(500).json({ success: false, error: { message: err.message } }); }
 });
 
-app.post('/api/patients/:id/medications', async (req, res) => {
+// ISSUE-013: Validate medication body
+app.post('/api/patients/:id/medications', requireRole('ADMIN', 'RECEPTIONIST'), async (req, res) => {
   try {
+    validateMedicationBody(req.body);
     const item = await db.addPatientMedication({ patientId: req.params.id, ...req.body });
     res.status(201).json({ success: true, data: item });
-  } catch (err: any) { res.status(500).json({ success: false, error: { message: err.message } }); }
+  } catch (err: any) {
+    if (err.status === 400) return handleValidationError(err, res);
+    res.status(500).json({ success: false, error: { message: err.message } });
+  }
 });
 
-app.post('/api/patients/:id/dental-chart', async (req, res) => {
+app.post('/api/patients/:id/dental-chart', requireRole('ADMIN', 'RECEPTIONIST'), async (req, res) => {
   try {
     const { toothNumber, condition, notes } = req.body;
     if (!toothNumber || !condition) {
       return res.status(400).json({ success: false, error: { message: 'toothNumber and condition are required.' } });
     }
-    // SEC-07: validate tooth number range and condition enum
     const num = Number(toothNumber);
     if (!Number.isInteger(num) || num < 1 || num > 52) {
       return res.status(400).json({ success: false, error: { message: 'toothNumber must be an integer between 1 and 52.' } });
     }
     const VALID_CONDITIONS = [
-      'HEALTHY','CARIES','FILLED','CROWN','ROOT_CANAL',
-      'MISSING','IMPLANT','EXTRACTION_INDICATED','FRACTURED','BRIDGE'
+      'HEALTHY', 'CARIES', 'FILLED', 'CROWN', 'ROOT_CANAL',
+      'MISSING', 'IMPLANT', 'EXTRACTION_INDICATED', 'FRACTURED', 'BRIDGE',
     ];
     if (!VALID_CONDITIONS.includes(condition)) {
       return res.status(400).json({ success: false, error: { message: `condition must be one of: ${VALID_CONDITIONS.join(', ')}.` } });
@@ -565,8 +626,8 @@ app.get('/api/doctors/:id', async (req, res) => {
   } catch (err: any) { res.status(500).json({ success: false, error: { message: err.message } }); }
 });
 
-// SEC-03 + SEC-07: validated doctor creation (any authenticated receptionist can add doctors)
-app.post('/api/doctors', async (req, res) => {
+// ISSUE-003: Doctor creation restricted to ADMIN and RECEPTIONIST
+app.post('/api/doctors', requireRole('ADMIN', 'RECEPTIONIST'), async (req, res) => {
   try {
     validateDoctorBody(req.body);
     const cu = currentUser(req);
@@ -578,7 +639,8 @@ app.post('/api/doctors', async (req, res) => {
   }
 });
 
-app.put('/api/doctors/:id', async (req, res) => {
+// ISSUE-003: Doctor updates restricted to ADMIN and RECEPTIONIST
+app.put('/api/doctors/:id', requireRole('ADMIN', 'RECEPTIONIST'), async (req, res) => {
   try {
     const cu = currentUser(req);
     const updated = await db.updateDoctor(req.params.id, req.body, cu.id, cu.name, cu.role);
@@ -587,7 +649,8 @@ app.put('/api/doctors/:id', async (req, res) => {
   } catch (err: any) { res.status(500).json({ success: false, error: { message: err.message } }); }
 });
 
-app.delete('/api/doctors/:id', async (req, res) => {
+// ISSUE-003: Doctor deletion restricted to ADMIN only
+app.delete('/api/doctors/:id', requireRole('ADMIN'), async (req, res) => {
   try {
     const cu = currentUser(req);
     const result = await db.deleteDoctor(req.params.id, cu.id, cu.name, cu.role);
@@ -598,7 +661,7 @@ app.delete('/api/doctors/:id', async (req, res) => {
   } catch (err: any) { res.status(500).json({ success: false, error: { message: err.message } }); }
 });
 
-app.put('/api/doctors/:id/availability', async (req, res) => {
+app.put('/api/doctors/:id/availability', requireRole('ADMIN', 'RECEPTIONIST'), async (req, res) => {
   try {
     if (!Array.isArray(req.body.availability)) {
       return res.status(400).json({ success: false, error: { message: 'availability must be an array.' } });
@@ -609,7 +672,7 @@ app.put('/api/doctors/:id/availability', async (req, res) => {
   } catch (err: any) { res.status(500).json({ success: false, error: { message: err.message } }); }
 });
 
-app.post('/api/doctors/:id/exceptions', async (req, res) => {
+app.post('/api/doctors/:id/exceptions', requireRole('ADMIN', 'RECEPTIONIST'), async (req, res) => {
   try {
     const ex = await db.addDoctorException({ doctorId: req.params.id, ...req.body });
     res.status(201).json({ success: true, data: ex });
@@ -622,7 +685,7 @@ app.post('/api/doctors/:id/exceptions', async (req, res) => {
   }
 });
 
-app.delete('/api/doctors/exceptions/:exId', async (req, res) => {
+app.delete('/api/doctors/exceptions/:exId', requireRole('ADMIN', 'RECEPTIONIST'), async (req, res) => {
   try {
     await db.deleteDoctorException(req.params.exId);
     res.json({ success: true });
@@ -665,8 +728,8 @@ app.post('/api/appointments/check-conflict', async (req, res) => {
   } catch (err: any) { res.status(500).json({ success: false, error: { message: err.message } }); }
 });
 
-// SEC-03: validated appointment creation
-app.post('/api/appointments', async (req, res) => {
+// ISSUE-003: Appointment creation restricted to ADMIN and RECEPTIONIST
+app.post('/api/appointments', requireRole('ADMIN', 'RECEPTIONIST'), async (req, res) => {
   try {
     validateAppointmentBody(req.body);
     const allowOverride = req.body.allowOverride === true;
@@ -684,12 +747,11 @@ app.post('/api/appointments', async (req, res) => {
   }
 });
 
-app.put('/api/appointments/:id/status', async (req, res) => {
+app.put('/api/appointments/:id/status', requireRole('ADMIN', 'RECEPTIONIST'), async (req, res) => {
   try {
     const { status } = req.body;
     if (!status) return res.status(400).json({ success: false, error: { message: 'status is required.' } });
 
-    // BUG-06: enforce valid status transitions — prevent backwards/illegal moves
     const VALID_TRANSITIONS: Record<string, string[]> = {
       SCHEDULED:   ['CONFIRMED', 'ARRIVED', 'CANCELLED', 'NO_SHOW'],
       CONFIRMED:   ['ARRIVED', 'CANCELLED', 'NO_SHOW'],
@@ -719,7 +781,7 @@ app.put('/api/appointments/:id/status', async (req, res) => {
   } catch (err: any) { res.status(500).json({ success: false, error: { message: err.message } }); }
 });
 
-app.post('/api/appointments/:id/reschedule', async (req, res) => {
+app.post('/api/appointments/:id/reschedule', requireRole('ADMIN', 'RECEPTIONIST'), async (req, res) => {
   try {
     const { newDate, newStartTime, newEndTime, reason, allowOverride } = req.body;
     if (!newDate || !newStartTime || !newEndTime) {
@@ -746,12 +808,17 @@ app.get('/api/visits', async (req, res) => {
   } catch (err: any) { res.status(500).json({ success: false, error: { message: err.message } }); }
 });
 
-app.post('/api/visits', async (req, res) => {
+// ISSUE-013: Validate visit body
+app.post('/api/visits', requireRole('ADMIN', 'RECEPTIONIST'), async (req, res) => {
   try {
+    validateVisitBody(req.body);
     const cu = currentUser(req);
     const visit = await db.createVisit(req.body, cu.id, cu.name, cu.role);
     res.status(201).json({ success: true, data: visit });
-  } catch (err: any) { res.status(500).json({ success: false, error: { message: err.message } }); }
+  } catch (err: any) {
+    if (err.status === 400) return handleValidationError(err, res);
+    res.status(500).json({ success: false, error: { message: err.message } });
+  }
 });
 
 // ─── Treatments ───────────────────────────────────────────────────────────────
@@ -766,15 +833,20 @@ app.get('/api/treatments', async (req, res) => {
   } catch (err: any) { res.status(500).json({ success: false, error: { message: err.message } }); }
 });
 
-app.post('/api/treatments', async (req, res) => {
+// ISSUE-013: Validate treatment body; ISSUE-003: restrict to staff roles
+app.post('/api/treatments', requireRole('ADMIN', 'RECEPTIONIST'), async (req, res) => {
   try {
+    validateTreatmentBody(req.body);
     const cu = currentUser(req);
     const treatment = await db.createTreatment(req.body, cu.id, cu.name, cu.role);
     res.status(201).json({ success: true, data: treatment });
-  } catch (err: any) { res.status(500).json({ success: false, error: { message: err.message } }); }
+  } catch (err: any) {
+    if (err.status === 400) return handleValidationError(err, res);
+    res.status(500).json({ success: false, error: { message: err.message } });
+  }
 });
 
-app.put('/api/treatments/:id', async (req, res) => {
+app.put('/api/treatments/:id', requireRole('ADMIN', 'RECEPTIONIST'), async (req, res) => {
   try {
     const cu = currentUser(req);
     const updated = await db.updateTreatment(req.params.id, req.body, cu.id, cu.name, cu.role);
@@ -803,8 +875,8 @@ app.get('/api/prescriptions/:id', async (req, res) => {
   } catch (err: any) { res.status(500).json({ success: false, error: { message: err.message } }); }
 });
 
-// BUG-05: allergy cross-check happens inside db.createPrescription; surface warnings here
-app.post('/api/prescriptions', async (req, res) => {
+// ISSUE-003: Prescription creation restricted to ADMIN and RECEPTIONIST
+app.post('/api/prescriptions', requireRole('ADMIN', 'RECEPTIONIST'), async (req, res) => {
   try {
     const { items, ...rxData } = req.body;
     if (!items || !Array.isArray(items) || items.length === 0) {
@@ -815,7 +887,6 @@ app.post('/api/prescriptions', async (req, res) => {
     }
     const cu = currentUser(req);
     const result = await db.createPrescription(rxData, items, cu.id, cu.name, cu.role);
-    // Return 201 with prescription; allergy warnings are embedded in result.allergyWarnings
     res.status(201).json({ success: true, data: result });
   } catch (err: any) { res.status(500).json({ success: false, error: { message: err.message } }); }
 });
@@ -829,7 +900,7 @@ app.get('/api/reminders', async (req, res) => {
   } catch (err: any) { res.status(500).json({ success: false, error: { message: err.message } }); }
 });
 
-app.post('/api/reminders/:id/send', async (req, res) => {
+app.post('/api/reminders/:id/send', requireRole('ADMIN', 'RECEPTIONIST'), async (req, res) => {
   try {
     const cu = currentUser(req);
     const reminder = await db.triggerManualReminder(req.params.id, cu.id, cu.name, cu.role);
@@ -860,7 +931,6 @@ app.get('/api/settings', async (_req, res) => {
   } catch (err: any) { res.status(500).json({ success: false, error: { message: err.message } }); }
 });
 
-// SEC-07: only admins / receptionists can change clinic-wide settings
 app.put('/api/settings', requireRole('ADMIN', 'RECEPTIONIST'), async (req, res) => {
   try {
     const cu = currentUser(req);
@@ -870,11 +940,9 @@ app.put('/api/settings', requireRole('ADMIN', 'RECEPTIONIST'), async (req, res) 
 });
 
 // ─── Audit Logs ───────────────────────────────────────────────────────────────
-// Finding 6: restrict to ADMIN role — receptionists must not read the full trail
+
 app.get('/api/audit-logs', requireRole('ADMIN'), async (req, res) => {
   try {
-    // SEC-45: parseInt('NaN') → NaN → Math.min(NaN,500) = NaN → Postgres error.
-    // Use Number.isFinite guard to ensure limit is always a valid positive integer.
     const rawLimit   = Number(req.query.limit);
     const limit      = Number.isFinite(rawLimit) ? Math.min(Math.max(1, rawLimit), 500) : 100;
     const entityType = req.query.entityType as string | undefined;

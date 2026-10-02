@@ -59,20 +59,18 @@ export const ReceptionistDashboard: React.FC<ReceptionistDashboardProps> = ({
   // BUG-08: surface status update errors instead of swallowing them
   const [statusUpdateError, setStatusUpdateError] = useState<string | null>(null);
 
-  const todayStr = new Date().toISOString().split('T')[0];
-  const yesterdayStr = (() => {
-    const d = new Date(); d.setDate(d.getDate() - 1);
-    return d.toISOString().split('T')[0];
-  })();
-
   const loadDashboardData = async () => {
+    // ISSUE-021 FIX: recalculate today/yesterday inside the function so that
+    // if the dashboard is open past midnight the dates are always current.
+    const todayNow = new Date().toISOString().split('T')[0];
+    const d = new Date(); d.setDate(d.getDate() - 1);
+    const yesterdayNow = d.toISOString().split('T')[0];
+
     try {
       setRefreshing(true);
-      // SCAL-05: only fetch today+yesterday appointments on refresh.
-      // Doctors and settings are pre-loaded from App.tsx and don't change mid-session.
       const fetches: Promise<any>[] = [
-        api.getAppointments({ date: todayStr }),
-        api.getAppointments({ date: yesterdayStr }),
+        api.getAppointments({ date: todayNow }),
+        api.getAppointments({ date: yesterdayNow }),
       ];
       if (!initialDoctors) fetches.push(api.getDoctors());
       if (!initialSettings) fetches.push(api.getSettings());

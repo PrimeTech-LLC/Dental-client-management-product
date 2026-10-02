@@ -98,7 +98,11 @@ export const PrintCenterModal: React.FC<PrintCenterModalProps> = ({
       }
     }
     fetchDocData();
-  }, [isOpen, docType, selectedDate, selectedDoctorId, selectedPatientId, selectedAppointment, selectedPrescription]);
+  // ISSUE-020 FIX: use selectedPrescription?.id (primitive) not the full object
+  // reference — the object changes identity on every parent render, causing the
+  // effect to re-run and fire unnecessary API calls while the modal is open.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isOpen, docType, selectedDate, selectedDoctorId, selectedPatientId, selectedAppointment?.id, selectedPrescription?.id]);
 
   if (!isOpen) return null;
 
