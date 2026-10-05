@@ -25,6 +25,7 @@ import {
   ClinicSettings,
   AuditLog,
   ConflictCheckResult,
+  PatientXRay,
 } from '../../types/index.js';
 
 // ─── Row → Domain mappers ──────────────────────────────────────────────────
@@ -343,6 +344,23 @@ function mapAuditLog(r: any): AuditLog {
     oldValues: r.old_values,
     newValues: r.new_values,
     ipAddress: r.ip_address,
+    createdAt: r.created_at,
+  };
+}
+
+function mapXRay(r: any): PatientXRay {
+  return {
+    id: r.id,
+    patientId: r.patient_id,
+    filename: r.filename,
+    blobUrl: r.blob_url,
+    contentType: r.content_type,
+    sizeBytes: r.size_bytes,
+    notes: r.notes,
+    takenAt: r.taken_at
+      ? (typeof r.taken_at === 'string' ? r.taken_at : r.taken_at.toISOString().slice(0, 10))
+      : undefined,
+    uploadedBy: r.uploaded_by,
     createdAt: r.created_at,
   };
 }
@@ -763,6 +781,7 @@ export async function getPatientById(id: string): Promise<(Patient & {
   treatments: Treatment[];
   prescriptions: Prescription[];
   visits: Visit[];
+  xrays: PatientXRay[];
 }) | null> {
   const ptRows = await query(
     'SELECT * FROM patients WHERE id = $1 OR patient_number = $1',
@@ -774,7 +793,7 @@ export async function getPatientById(id: string): Promise<(Patient & {
 
   const [
     medRows, allergyRows, medRows2, dentalRows,
-    apptRows, treatRows, rxRows, visitRows
+    apptRows, treatRows, rxRows, visitRows, xrayRows
   ] = await Promise.all([
     query('SELECT * FROM patient_medical_history WHERE patient_id = $1 ORDER BY created_at DESC', [pid]),
     query('SELECT * FROM patient_allergies WHERE patient_id = $1 ORDER BY severity DESC', [pid]),
@@ -802,6 +821,10 @@ export async function getPatientById(id: string): Promise<(Patient & {
            FROM visits v
            LEFT JOIN doctors d ON v.doctor_id = d.id
            WHERE v.patient_id = $1 ORDER BY v.visit_date DESC`, [pid]),
+    query(
+      `SELECT * FROM patient_xrays WHERE patient_id = $1 ORDER BY created_at DESC`,
+      [pid]
+    ),
   ]);
 
   // Hydrate appointments
@@ -847,6 +870,7 @@ export async function getPatientById(id: string): Promise<(Patient & {
     treatments,
     prescriptions,
     visits,
+    xrays: xrayRows.map(mapXRay),
   };
 }
 
@@ -1824,4 +1848,57 @@ export async function getReports(startDate: string, endDate: string, doctorId?: 
     ),
     byDoctorDetailed: Object.values(doctorMap),
   };
+}
+
+// ─── Patient X-Rays ──────────────────────────────────────────────────────────
+
+export async function getPatientXRays(patientId: string): Promise<PatientXRay[]> {
+  const rows = await query(
+    `SELECT * FROM patient_xrays WHERE patient_id = $1 ORDER BY created_at DESC`,
+    [patientId]
+  );
+  return rows.map(mapXRay);
+}
+
+export async function addPatientXRay(data: {
+  patientId: string;
+  filename: string;
+  blobUrl: string;
+  contentType: string;
+  sizeBytes: number;
+  notes?: string;
+  takenAt?: string;
+  uploadedBy: string;
+}): Promise<PatientXRay> {
+  const rows = await query<any>(
+    `INSERT INTO patient_xrays
+       (patient_id, filename, blob_url, content_type, size_bytes, notes, taken_at, uploaded_by)
+     VALUES ($1,$2,$3,$4,$5,$6,$7,$8)
+     RETURNING *`,
+    [
+      data.patientId,
+      data.filename,
+      data.blobUrl,
+      data.contentType,
+      data.sizeBytes,
+      data.notes ?? null,
+      data.takenAt ?? null,
+      data.uploadedBy,
+    ]
+  );
+  return mapXRay(rows[0]);
+}
+
+export async function deletePatientXRay(
+  xrayId: string,
+  patientId: string
+): Promise<{ found: boolean; blobUrl: string | null }> {
+  // Verify ownership before deleting — ensures a user cannot delete an X-ray
+  // belonging to a different patient by guessing the xray ID.
+  const rows = await query<any>(
+    `DELETE FROM patient_xrays WHERE id = $1 AND patient_id = $2 RETURNING blob_url`,
+    [xrayId, patientId]
+  );
+  if (!rows[0]) return { found: false, blobUrl: null };
+  return { found: true, blobUrl: rows[0].blob_url };
 }

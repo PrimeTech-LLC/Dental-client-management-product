@@ -9,7 +9,8 @@ import {
   ClinicSettings,
   AuditLog,
   User,
-  ConflictCheckResult
+  ConflictCheckResult,
+  PatientXRay,
 } from '../types/index.js';
 
 async function fetchJson<T>(url: string, options?: RequestInit): Promise<T> {
@@ -297,5 +298,58 @@ export const api = {
     fetchJson<any>('/api/audit-logs/print', {
       method: 'POST',
       body: JSON.stringify({ documentType, documentId, patientName })
-    })
+    }),
+
+  // ─── Patient X-Rays ────────────────────────────────────────────────────────
+
+  getXRays: (patientId: string) =>
+    fetchJson<PatientXRay[]>(`/api/patients/${patientId}/xrays`),
+
+  /**
+   * Upload one or more X-ray files for a patient.
+   *
+   * Sends multipart/form-data — does NOT set Content-Type manually so the
+   * browser includes the correct multipart boundary in the header.
+   *
+   * @param patientId  Patient UUID
+   * @param files      FileList or File[] from an <input type="file"> element
+   * @param notes      Optional label applied to all files in this batch (e.g. "Left bitewing")
+   * @param takenAt    Optional YYYY-MM-DD date the X-ray was taken
+   */
+  uploadXRays: async (
+    patientId: string,
+    files: File[],
+    notes?: string,
+    takenAt?: string
+  ): Promise<PatientXRay[]> => {
+    const form = new FormData();
+    for (const file of files) form.append('files', file);
+    if (notes)   form.append('notes',   notes);
+    if (takenAt) form.append('takenAt', takenAt);
+
+    // Use fetch directly — fetchJson always sets Content-Type: application/json
+    // which would break multipart uploads.
+    const res = await fetch(`/api/patients/${patientId}/xrays`, {
+      method: 'POST',
+      body: form,
+      // credentials are included via cookies automatically for same-origin requests
+    });
+
+    const contentType = res.headers.get('content-type') || '';
+    if (!contentType.includes('application/json')) {
+      const text = await res.text().catch(() => '');
+      throw new Error(`Server returned non-JSON response (${res.status}): ${text.slice(0, 80)}`);
+    }
+
+    const data = await res.json();
+    if (!res.ok || !data.success) {
+      const err: any = new Error(data.error?.message || `Upload failed with status ${res.status}`);
+      err.code = data.error?.code;
+      throw err;
+    }
+    return data.data as PatientXRay[];
+  },
+
+  deleteXRay: (patientId: string, xrayId: string) =>
+    fetchJson<void>(`/api/patients/${patientId}/xrays/${xrayId}`, { method: 'DELETE' }),
 };
