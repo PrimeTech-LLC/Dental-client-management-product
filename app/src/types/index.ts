@@ -373,6 +373,21 @@ export interface ConflictCheckResult {
   conflictingAppointment?: Appointment;
 }
 
+// ─── Patient X-Rays ──────────────────────────────────────────────────────────
+
+export interface PatientXRay {
+  id: string;
+  patientId: string;
+  filename: string;       // original file name shown in the UI
+  blobUrl: string;        // Vercel Blob permanent URL
+  contentType: string;    // MIME type: image/jpeg, image/png, image/dicom, etc.
+  sizeBytes: number;
+  notes?: string;         // optional label, e.g. "Left bitewing", "PA #19"
+  takenAt?: string;       // "YYYY-MM-DD" — date the X-ray was taken
+  uploadedBy: string;     // user name of the uploader
+  createdAt: string;
+}
+
 // ─── PatientFull ─────────────────────────────────────────────────────────────
 // DEBT-02: Composite type used by PatientProfileView — replaces useState<any>.
 // The API endpoint GET /api/patients/:id returns Patient + all related arrays.
@@ -385,4 +400,5 @@ export interface PatientFull extends Patient {
   treatments:      Treatment[];
   prescriptions:   Prescription[];
   visits:          Visit[];
+  xrays:           PatientXRay[];
 }

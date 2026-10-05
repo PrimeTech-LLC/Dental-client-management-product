@@ -375,3 +375,45 @@ DO $$ BEGIN
     END;
   END IF;
 END $$;
+
+-- ─── PATIENT X-RAYS ───────────────────────────────────────────
+-- Stores metadata for X-ray images uploaded via Vercel Blob.
+-- The actual binary is held in Vercel Blob storage; blob_url is the
+-- permanent opaque URL returned by the Blob SDK after upload.
+CREATE TABLE IF NOT EXISTS patient_xrays (
+  id           TEXT PRIMARY KEY DEFAULT gen_random_uuid()::text,
+  patient_id   TEXT NOT NULL REFERENCES patients(id) ON DELETE CASCADE,
+  filename     TEXT NOT NULL,        -- original file name (shown in UI)
+  blob_url     TEXT NOT NULL UNIQUE, -- Vercel Blob URL
+  content_type TEXT NOT NULL,        -- MIME type, e.g. image/jpeg
+  size_bytes   INTEGER NOT NULL,
+  notes        TEXT,                 -- optional label, e.g. "Left bitewing"
+  taken_at     DATE,                 -- date the X-ray was taken (may differ from upload date)
+  uploaded_by  TEXT NOT NULL,        -- user name of uploader
+  created_at   TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+CREATE INDEX IF NOT EXISTS idx_xrays_patient    ON patient_xrays(patient_id);
+CREATE INDEX IF NOT EXISTS idx_xrays_created_at ON patient_xrays(created_at DESC);
+
+-- Migration helper: add patient_xrays table on existing databases
+DO $$ BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM information_schema.tables
+    WHERE table_name = 'patient_xrays'
+  ) THEN
+    CREATE TABLE patient_xrays (
+      id           TEXT PRIMARY KEY DEFAULT gen_random_uuid()::text,
+      patient_id   TEXT NOT NULL REFERENCES patients(id) ON DELETE CASCADE,
+      filename     TEXT NOT NULL,
+      blob_url     TEXT NOT NULL UNIQUE,
+      content_type TEXT NOT NULL,
+      size_bytes   INTEGER NOT NULL,
+      notes        TEXT,
+      taken_at     DATE,
+      uploaded_by  TEXT NOT NULL,
+      created_at   TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    );
+    CREATE INDEX idx_xrays_patient    ON patient_xrays(patient_id);
+    CREATE INDEX idx_xrays_created_at ON patient_xrays(created_at DESC);
+  END IF;
+END $$;

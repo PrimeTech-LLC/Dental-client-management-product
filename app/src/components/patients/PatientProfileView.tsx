@@ -27,6 +27,7 @@ import { api } from '../../lib/api.js';
 import { BLOOD_GROUPS, GENDER_OPTIONS } from '../../lib/constants.js';
 import { formatDate, formatTime, calculateAge, getStatusBadgeClasses } from '../../lib/utils.js';
 import { DentalChart } from './DentalChart.js';
+import { XRaysTab } from './XRaysTab.js';
 import { ConfirmDialog } from '../ui/Toast.js';
 
 interface PatientProfileViewProps {
@@ -38,7 +39,7 @@ interface PatientProfileViewProps {
   onRescheduleAppointment: (appointment: Appointment) => void;
 }
 
-type TabType = 'overview' | 'dental-chart' | 'medical' | 'allergies' | 'appointments' | 'treatments' | 'prescriptions' | 'visits';
+type TabType = 'overview' | 'dental-chart' | 'medical' | 'allergies' | 'appointments' | 'treatments' | 'prescriptions' | 'visits' | 'xrays';
 
 
 export const PatientProfileView: React.FC<PatientProfileViewProps> = ({
@@ -502,6 +503,7 @@ export const PatientProfileView: React.FC<PatientProfileViewProps> = ({
           { id: 'treatments',    label: `Treatments (${patient.treatments?.length || 0})` },
           { id: 'prescriptions', label: `Prescriptions (${patient.prescriptions?.length || 0})` },
           { id: 'visits',        label: `Clinical Visits (${patient.visits?.length || 0})` },
+          { id: 'xrays',         label: `X-Rays (${patient.xrays?.length || 0})` },
         ].map(tab => (
           <button
             key={tab.id}
@@ -857,6 +859,17 @@ export const PatientProfileView: React.FC<PatientProfileViewProps> = ({
               <div className="p-8 text-center text-slate-400">No clinical consultation visits recorded.</div>
             )}
           </div>
+        )}
+
+        {/* 9. X-RAYS */}
+        {activeTab === 'xrays' && (
+          <XRaysTab
+            patientId={patient.id}
+            xrays={patient.xrays || []}
+            onXRaysChange={(updated) =>
+              setPatient(prev => prev ? { ...prev, xrays: updated } : prev)
+            }
+          />
         )}
       </div>
 

@@ -5,6 +5,8 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 import cookieParser from 'cookie-parser';
 import jwt from 'jsonwebtoken';
+import multer from 'multer';
+import { put, del } from '@vercel/blob';
 
 import * as db from './src/server/db/database.js';
 import type { User, UserRole } from './src/types/index.js';
@@ -967,6 +969,172 @@ app.post('/api/audit-logs/print', async (req, res) => {
 
 // ─── Health check ─────────────────────────────────────────────────────────────
 app.get('/api/health', (_req, res) => res.json({ status: 'ok', ts: Date.now() }));
+
+// ─── Patient X-Rays ───────────────────────────────────────────────────────────
+// Accepted MIME types for X-ray uploads.
+const ACCEPTED_XRAY_TYPES = new Set([
+  'image/jpeg', 'image/jpg', 'image/png', 'image/gif',
+  'image/webp', 'image/bmp', 'image/tiff',
+  'application/dicom', 'application/octet-stream', // .dcm files
+]);
+
+// Magic-byte signatures for common image formats (first 4 bytes).
+// Used as a second line of defence after MIME-type validation.
+const MAGIC_BYTES: Array<{ type: string; bytes: number[] }> = [
+  { type: 'image/jpeg',  bytes: [0xFF, 0xD8, 0xFF] },
+  { type: 'image/png',   bytes: [0x89, 0x50, 0x4E, 0x47] },
+  { type: 'image/gif',   bytes: [0x47, 0x49, 0x46] },
+  { type: 'image/webp',  bytes: [0x52, 0x49, 0x46, 0x46] },
+  { type: 'image/bmp',   bytes: [0x42, 0x4D] },
+  { type: 'image/tiff',  bytes: [0x49, 0x49, 0x2A, 0x00] },  // little-endian
+  { type: 'image/tiff',  bytes: [0x4D, 0x4D, 0x00, 0x2A] },  // big-endian
+  { type: 'application/dicom', bytes: [] },                   // DICOM: no universal magic bytes; trust extension + mime
+];
+
+function detectMagicBytes(buf: Buffer): boolean {
+  for (const sig of MAGIC_BYTES) {
+    if (sig.bytes.length === 0) continue; // DICOM — skip magic-byte check
+    if (sig.bytes.every((b, i) => buf[i] === b)) return true;
+  }
+  return false;
+}
+
+const MAX_FILE_SIZE_BYTES = 20 * 1024 * 1024; // 20 MB per file
+const MAX_FILES_PER_REQUEST = 10;
+
+// Multer: store files in memory (never on disk — safe for serverless).
+// Size limit is enforced here before the buffer is even read.
+const xrayUpload = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: MAX_FILE_SIZE_BYTES, files: MAX_FILES_PER_REQUEST },
+  fileFilter: (_req, file, cb) => {
+    // Normalise content-type: multer reads the Content-Type sent by the browser.
+    const mime = file.mimetype.toLowerCase();
+    // Accept any image/* MIME as well as the explicit DICOM types.
+    if (mime.startsWith('image/') || ACCEPTED_XRAY_TYPES.has(mime) || file.originalname.toLowerCase().endsWith('.dcm')) {
+      cb(null, true);
+    } else {
+      cb(new Error(`File type not accepted: ${file.mimetype}. Please upload images (JPEG, PNG, WEBP, GIF, BMP, TIFF) or DICOM files.`));
+    }
+  },
+});
+
+// GET  /api/patients/:id/xrays  — list all X-rays for a patient
+app.get('/api/patients/:id/xrays', async (req, res) => {
+  try {
+    const xrays = await db.getPatientXRays(req.params.id);
+    res.json({ success: true, data: xrays });
+  } catch (err: any) { res.status(500).json({ success: false, error: { message: err.message } }); }
+});
+
+// POST /api/patients/:id/xrays  — upload one or more X-ray images
+app.post(
+  '/api/patients/:id/xrays',
+  requireRole('ADMIN', 'RECEPTIONIST'),
+  (req, res, next) => {
+    // Run multer as middleware inside the route so errors are catchable.
+    xrayUpload.array('files', MAX_FILES_PER_REQUEST)(req, res, (err) => {
+      if (err instanceof multer.MulterError) {
+        if (err.code === 'LIMIT_FILE_SIZE') {
+          return res.status(413).json({ success: false, error: { code: 'FILE_TOO_LARGE', message: `Each file must be under ${MAX_FILE_SIZE_BYTES / 1024 / 1024} MB.` } });
+        }
+        if (err.code === 'LIMIT_FILE_COUNT') {
+          return res.status(400).json({ success: false, error: { code: 'TOO_MANY_FILES', message: `Maximum ${MAX_FILES_PER_REQUEST} files per upload.` } });
+        }
+        return res.status(400).json({ success: false, error: { message: err.message } });
+      }
+      if (err) return res.status(400).json({ success: false, error: { message: err.message } });
+      next();
+    });
+  },
+  async (req, res) => {
+    try {
+      const files = req.files as Express.Multer.File[] | undefined;
+      if (!files || files.length === 0) {
+        return res.status(400).json({ success: false, error: { code: 'NO_FILES', message: 'At least one file is required.' } });
+      }
+
+      // Verify the patient exists before uploading anything.
+      const patientCheck = await db.getPatientById(req.params.id);
+      if (!patientCheck) {
+        return res.status(404).json({ success: false, error: { code: 'NOT_FOUND', message: 'Patient not found.' } });
+      }
+
+      const cu = currentUser(req);
+      const notes   = typeof req.body.notes   === 'string' ? req.body.notes.trim().slice(0, 500)   : undefined;
+      const takenAt = typeof req.body.takenAt === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(req.body.takenAt)
+        ? req.body.takenAt : undefined;
+
+      // Validate each file's content via magic bytes, then upload to Vercel Blob.
+      const created = [];
+      for (const file of files) {
+        const mime = file.mimetype.toLowerCase();
+        const isDicom = file.originalname.toLowerCase().endsWith('.dcm') || mime === 'application/dicom';
+        // Skip magic-byte check for DICOM files (no universal signature).
+        if (!isDicom && !detectMagicBytes(file.buffer)) {
+          return res.status(400).json({
+            success: false,
+            error: { code: 'INVALID_FILE_CONTENT', message: `File "${file.originalname}" does not appear to be a valid image.` },
+          });
+        }
+
+        // Upload to Vercel Blob. The pathname determines the URL structure.
+        // We namespace by patient ID so files are logically grouped.
+        const blobPathname = `xrays/${req.params.id}/${Date.now()}-${file.originalname.replace(/[^a-zA-Z0-9._-]/g, '_')}`;
+        const blob = await put(blobPathname, file.buffer, {
+          access: 'public',
+          contentType: file.mimetype,
+        });
+
+        const xray = await db.addPatientXRay({
+          patientId:   req.params.id,
+          filename:    file.originalname,
+          blobUrl:     blob.url,
+          contentType: file.mimetype,
+          sizeBytes:   file.size,
+          notes,
+          takenAt,
+          uploadedBy:  cu.name,
+        });
+        created.push(xray);
+      }
+
+      await db.logAudit({
+        userId: cu.id, userName: cu.name, userRole: cu.role,
+        action: 'XRAY_UPLOADED', entityType: 'XRAY',
+        entityId: req.params.id,
+        entityName: `${created.length} X-ray(s) for patient ${patientCheck.patientNumber}`,
+      });
+
+      res.status(201).json({ success: true, data: created });
+    } catch (err: any) {
+      res.status(500).json({ success: false, error: { message: err.message } });
+    }
+  }
+);
+
+// DELETE /api/patients/xrays/:xrayId  — delete one X-ray
+// The patientId is passed as a query param so the DB can verify ownership.
+app.delete('/api/patients/:patientId/xrays/:xrayId', requireRole('ADMIN', 'RECEPTIONIST'), async (req, res) => {
+  try {
+    const { patientId, xrayId } = req.params;
+    const result = await db.deletePatientXRay(xrayId, patientId);
+    if (!result.found) {
+      return res.status(404).json({ success: false, error: { code: 'NOT_FOUND', message: 'X-ray not found or does not belong to this patient.' } });
+    }
+    // Remove the file from Vercel Blob storage.
+    if (result.blobUrl) {
+      await del(result.blobUrl);
+    }
+    const cu = currentUser(req);
+    await db.logAudit({
+      userId: cu.id, userName: cu.name, userRole: cu.role,
+      action: 'XRAY_DELETED', entityType: 'XRAY',
+      entityId: xrayId, entityName: `X-ray for patient ${patientId}`,
+    });
+    res.json({ success: true });
+  } catch (err: any) { res.status(500).json({ success: false, error: { message: err.message } }); }
+});
 
 // ─── Production static file serving ──────────────────────────────────────────
 
